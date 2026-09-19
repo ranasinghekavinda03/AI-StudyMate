@@ -1496,6 +1496,47 @@
   margin-top: var(--space-2);
 }
 
+.delete-confirmation-modal {
+  max-width: 520px;
+}
+
+.delete-confirmation-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.delete-confirmation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: var(--danger);
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.delete-confirmation-text {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  margin-bottom: var(--space-6);
+}
+
+.delete-confirmation-text strong {
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  color: white;
+  background: var(--danger);
+}
+
+.btn-danger:hover {
+  filter: brightness(0.92);
+}
+
 /* ---------- Section Card ---------- */
 .section-card {
   background: var(--surface);

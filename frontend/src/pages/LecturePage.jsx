@@ -3,15 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   UploadCloud,
   FileText,
-  FileCode,
-  File,
   CheckCircle2,
   Trash2,
   MessageSquare,
   HelpCircle,
-  Clock,
   Sparkles,
-  Filter
+  Filter,
+  X,
+  AlertTriangle
 } from 'lucide-react'
 
 const INITIAL_LECTURES = [
@@ -68,6 +67,7 @@ export default function LecturePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadStep, setUploadStep] = useState('')
   const [filterModule, setFilterModule] = useState('all')
+  const [lectureToDelete, setLectureToDelete] = useState(null)
   const fileInputRef = useRef(null)
 
   const handleDragOver = (e) => {
@@ -127,8 +127,16 @@ export default function LecturePage() {
     }, 500)
   }
 
-  const handleDelete = (id) => {
-    setLectures(lectures.filter((l) => l.id !== id))
+  const handleDelete = (lecture) => {
+    setLectureToDelete(lecture)
+  }
+
+  const confirmDelete = () => {
+    if (!lectureToDelete) return
+    setLectures((currentLectures) =>
+      currentLectures.filter((lecture) => lecture.id !== lectureToDelete.id)
+    )
+    setLectureToDelete(null)
   }
 
   const filteredLectures =
@@ -296,7 +304,7 @@ export default function LecturePage() {
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      onClick={() => handleDelete(lec.id)}
+                      onClick={() => handleDelete(lec)}
                       title="Delete lecture"
                       style={{ color: 'var(--danger)' }}
                     >
@@ -309,6 +317,53 @@ export default function LecturePage() {
           )}
         </div>
       </div>
+
+      {lectureToDelete && (
+        <div className="modal-overlay" onClick={() => setLectureToDelete(null)}>
+          <div
+            className="modal delete-confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-lecture-title"
+            aria-describedby="delete-lecture-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="delete-confirmation-heading">
+                <span className="delete-confirmation-icon">
+                  <AlertTriangle size={22} />
+                </span>
+                <h2 id="delete-lecture-title">Delete lecture?</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setLectureToDelete(null)}
+                aria-label="Close delete confirmation"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p id="delete-lecture-description" className="delete-confirmation-text">
+              Are you sure you want to delete <strong>{lectureToDelete.title}</strong>? This action
+              cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setLectureToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={confirmDelete}>
+                <Trash2 size={16} />
+                Delete lecture
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
