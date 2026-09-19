@@ -21,3 +21,7 @@ class LectureResponse(LectureBase):
     chunks_count: Optional[int] = 0
 
     model_config = {"from_attributes": True}
+
+
+class LectureUploadResponse(LectureResponse):
+    extracted_text: str

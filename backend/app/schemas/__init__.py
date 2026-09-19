@@ -1,7 +1,7 @@
 from app.schemas.token import Token, TokenPayload
 from app.schemas.user import UserCreate, UserLogin, UserResponse, AuthResponse
 from app.schemas.module import ModuleCreate, ModuleUpdate, ModuleResponse
-from app.schemas.lecture import LectureCreate, LectureResponse
+from app.schemas.lecture import LectureCreate, LectureResponse, LectureUploadResponse
 
 __all__ = [
     "Token",
@@ -15,4 +15,5 @@ __all__ = [
     "ModuleResponse",
     "LectureCreate",
     "LectureResponse",
+    "LectureUploadResponse",
 ]
