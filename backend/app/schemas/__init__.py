@@ -1,1 +1,18 @@
-"""Pydantic schema package."""
+from app.schemas.token import Token, TokenPayload
+from app.schemas.user import UserCreate, UserLogin, UserResponse, AuthResponse
+from app.schemas.module import ModuleCreate, ModuleUpdate, ModuleResponse
+from app.schemas.lecture import LectureCreate, LectureResponse
+
+__all__ = [
+    "Token",
+    "TokenPayload",
+    "UserCreate",
+    "UserLogin",
+    "UserResponse",
+    "AuthResponse",
+    "ModuleCreate",
+    "ModuleUpdate",
+    "ModuleResponse",
+    "LectureCreate",
+    "LectureResponse",
+]

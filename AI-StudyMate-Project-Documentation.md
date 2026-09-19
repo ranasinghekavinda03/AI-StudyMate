@@ -515,9 +515,9 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 
 ## 17. Milestone Checklist
 
-- [ ] Repo scaffolded (frontend + backend), CI running lint/tests
-- [ ] Auth (register/login/JWT) working end-to-end
-- [ ] Module CRUD working
+- [x] Repo scaffolded (frontend + backend), CI running lint/tests
+- [x] Auth (register/login/JWT) working end-to-end
+- [x] Module CRUD working
 - [ ] Document upload + storage working
 - [ ] RAG ingestion pipeline (extract → clean → chunk → embed → store)
 - [ ] RAG chat endpoint returning cited answers
