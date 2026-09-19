@@ -261,7 +261,7 @@ export default function LecturePage() {
                   <div
                     className="lecture-item-icon"
                     style={{
-                      background: lec.fileType === 'PDF' ? 'rgba(244, 63, 94, 0.1)' : 'rgba(79, 70, 229, 0.1)',
+                      background: lec.fileType === 'PDF' ? 'var(--danger-light)' : 'var(--primary-light)',
                       color: lec.fileType === 'PDF' ? 'var(--danger)' : 'var(--primary)',
                     }}
                   >

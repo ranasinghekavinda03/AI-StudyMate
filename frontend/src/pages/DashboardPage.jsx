@@ -185,7 +185,7 @@ export default function DashboardPage() {
             <span className="quick-action-label">Generate Quiz</span>
           </Link>
           <Link to="/modules" className="quick-action">
-            <div className="quick-action-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)' }}>
+            <div className="quick-action-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
               <BookOpen size={24} />
             </div>
             <span className="quick-action-label">Browse Modules</span>

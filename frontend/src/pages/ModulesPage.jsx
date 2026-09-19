@@ -23,7 +23,7 @@ const INITIAL_MODULES = [
     quizzesCount: 14,
     progress: 75,
     icon: '🤖',
-    color: '#4F46E5',
+    color: '#3D2B1F',
   },
   {
     id: 'mod_2',
@@ -34,7 +34,7 @@ const INITIAL_MODULES = [
     quizzesCount: 22,
     progress: 60,
     icon: '🧠',
-    color: '#14B8A6',
+    color: '#8E9680',
   },
   {
     id: 'mod_3',
@@ -45,7 +45,7 @@ const INITIAL_MODULES = [
     quizzesCount: 9,
     progress: 40,
     icon: '📊',
-    color: '#F59E0B',
+    color: '#D9B382',
   },
   {
     id: 'mod_4',
@@ -56,7 +56,7 @@ const INITIAL_MODULES = [
     quizzesCount: 18,
     progress: 88,
     icon: '⚡',
-    color: '#10B981',
+    color: '#A37C76',
   },
 ]
 
@@ -88,7 +88,7 @@ export default function ModulesPage() {
       quizzesCount: 0,
       progress: 0,
       icon: '📚',
-      color: '#4F46E5',
+      color: '#3D2B1F',
     }
 
     setModules([newModule, ...modules])
