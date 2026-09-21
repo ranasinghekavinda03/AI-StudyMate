@@ -767,6 +767,25 @@
   font-size: var(--text-xl);
 }
 
+.module-card-icon-real {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.module-loading-spinner {
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--space-4);
+  border: 3px solid var(--primary-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+}
+
+.module-error-icon {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
 .module-card-title {
   font-size: var(--text-lg);
   font-weight: 600;

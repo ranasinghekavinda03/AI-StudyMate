@@ -1,124 +1,63 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  BookOpen,
-  Plus,
-  Search,
-  MessageSquare,
-  UploadCloud,
-  HelpCircle,
-  MoreVertical,
-  X,
-  Sparkles,
-  Layers
-} from 'lucide-react'
-
-const INITIAL_MODULES = [
-  {
-    id: 'mod_1',
-    code: 'CS 401',
-    title: 'Artificial Intelligence',
-    description: 'Heuristic search algorithms (A*, IDA*), knowledge representation, game playing, and constraint satisfaction problems.',
-    lecturesCount: 8,
-    quizzesCount: 14,
-    progress: 75,
-    icon: '🤖',
-    color: '#3D2B1F',
-  },
-  {
-    id: 'mod_2',
-    code: 'CS 480',
-    title: 'Machine Learning & Deep Learning',
-    description: 'Supervised & unsupervised learning, gradient descent, neural networks, backpropagation, SVMs, and CNNs.',
-    lecturesCount: 12,
-    quizzesCount: 22,
-    progress: 60,
-    icon: '🧠',
-    color: '#8E9680',
-  },
-  {
-    id: 'mod_3',
-    code: 'STAT 350',
-    title: 'Applied Probability & Statistics',
-    description: 'Bayesian probability, random variables, hypothesis testing, Markov chains, and Poisson distributions.',
-    lecturesCount: 6,
-    quizzesCount: 9,
-    progress: 40,
-    icon: '📊',
-    color: '#D9B382',
-  },
-  {
-    id: 'mod_4',
-    code: 'CS 210',
-    title: 'Data Structures & Algorithms',
-    description: 'Binary search trees, balanced AVL/Red-Black trees, graph representations, dynamic programming, and amortized analysis.',
-    lecturesCount: 10,
-    quizzesCount: 18,
-    progress: 88,
-    icon: '⚡',
-    color: '#A37C76',
-  },
-]
+import { BookOpen, HelpCircle, Layers, MessageSquare, Search, UploadCloud } from 'lucide-react'
+import api from '../api/api'
+import { useAuth } from '../context/AuthContext'
 
 export default function ModulesPage() {
-  const [modules, setModules] = useState(INITIAL_MODULES)
+  const { token } = useAuth()
+  const [modules, setModules] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newCode, setNewCode] = useState('')
-  const [newDesc, setNewDesc] = useState('')
 
-  const filteredModules = modules.filter(
-    (m) =>
-      m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  useEffect(() => {
+    let active = true
 
-  const handleCreateModule = (e) => {
-    e.preventDefault()
-    if (!newTitle.trim()) return
+    async function loadModules() {
+      setLoading(true)
+      setError('')
 
-    const newModule = {
-      id: 'mod_' + Date.now(),
-      code: newCode.trim() || 'MOD ' + (modules.length + 1) * 100,
-      title: newTitle.trim(),
-      description: newDesc.trim() || 'Uploaded course study materials and notes.',
-      lecturesCount: 0,
-      quizzesCount: 0,
-      progress: 0,
-      icon: '📚',
-      color: '#3D2B1F',
+      try {
+        const data = await api.modules.list(token)
+        if (!active) return
+        if (!Array.isArray(data)) {
+          throw new Error('The server returned an invalid module list.')
+        }
+        setModules(data)
+      } catch (requestError) {
+        if (!active) return
+        setModules([])
+        setError(requestError.message || 'Unable to load modules. Please try again.')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
 
-    setModules([newModule, ...modules])
-    setNewTitle('')
-    setNewCode('')
-    setNewDesc('')
-    setIsModalOpen(false)
-  }
+    loadModules()
+    return () => {
+      active = false
+    }
+  }, [token])
+
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const filteredModules = modules.filter((module) =>
+    [module.title, module.code, module.description].some((value) =>
+      (value || '').toLowerCase().includes(normalizedSearch),
+    ),
+  )
 
   return (
     <div className="stagger-children">
-      {/* Page Header */}
       <div className="page-header">
         <div className="page-header-actions">
           <div>
             <h1>Study Modules</h1>
-            <p>Manage your academic courses, organize uploaded lectures, and test your knowledge.</p>
+            <p>Browse your academic courses and their uploaded lecture collections.</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus size={18} />
-            Create Module
-          </button>
         </div>
       </div>
 
-      {/* Search and Filters Bar */}
       <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-6)', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -128,7 +67,8 @@ export default function ModulesPage() {
             style={{ paddingLeft: '38px' }}
             placeholder="Search modules by code, title, or topic..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            disabled={loading}
           />
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -138,166 +78,81 @@ export default function ModulesPage() {
         </div>
       </div>
 
-      {/* Modules Grid */}
-      {filteredModules.length === 0 ? (
+      {loading ? (
+        <div className="empty-state card" role="status" aria-live="polite">
+          <div className="animate-spin module-loading-spinner" />
+          <div className="empty-state-title">Loading your modules...</div>
+          <div className="empty-state-desc">Retrieving your study workspace from the server.</div>
+        </div>
+      ) : error ? (
+        <div className="empty-state card" role="alert">
+          <div className="empty-state-icon module-error-icon">
+            <Layers size={32} />
+          </div>
+          <div className="empty-state-title">Unable to load modules</div>
+          <div className="empty-state-desc">{error}</div>
+        </div>
+      ) : modules.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon">
             <Layers size={32} />
           </div>
-          <div className="empty-state-title">No modules found</div>
-          <div className="empty-state-desc">
-            Try adjusting your search criteria or create your first study module.
+          <div className="empty-state-title">No modules yet</div>
+          <div className="empty-state-desc">Create your first module to organize your study materials.</div>
+        </div>
+      ) : filteredModules.length === 0 ? (
+        <div className="empty-state card">
+          <div className="empty-state-icon">
+            <Search size={32} />
           </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus size={16} /> Create Module
-          </button>
+          <div className="empty-state-title">No matching modules</div>
+          <div className="empty-state-desc">Try a different title, course code, or topic.</div>
         </div>
       ) : (
         <div className="grid-2">
-          {filteredModules.map((mod) => (
-            <div key={mod.id} className="module-card">
+          {filteredModules.map((module) => (
+            <div key={module.id} className="module-card">
               <div className="module-card-header">
                 <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-                  <div
-                    className="module-card-icon"
-                    style={{ background: `${mod.color}15`, color: mod.color }}
-                  >
-                    {mod.icon}
+                  <div className="module-card-icon module-card-icon-real">
+                    <BookOpen size={22} />
                   </div>
                   <div>
                     <span className="badge badge-primary" style={{ marginBottom: '4px' }}>
-                      {mod.code}
+                      {module.code || 'No course code'}
                     </span>
-                    <h3 className="module-card-title">{mod.title}</h3>
+                    <h3 className="module-card-title">{module.title}</h3>
                   </div>
                 </div>
               </div>
 
-              <p className="module-card-desc">{mod.description}</p>
+              <p className="module-card-desc">
+                {module.description || 'No description has been added for this module.'}
+              </p>
 
-              {/* Progress */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-1)', color: 'var(--text-muted)' }}>
-                  <span>Study Completion</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mod.progress}%</span>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-bar-fill" style={{ width: `${mod.progress}%` }} />
-                </div>
-              </div>
-
-              {/* Metadata */}
               <div className="module-card-meta">
-                <span>{mod.lecturesCount} Lectures</span>
-                <span>•</span>
-                <span>{mod.quizzesCount} Questions Generated</span>
+                <BookOpen size={15} />
+                <span>{module.lectures_count ?? 0} Lectures</span>
               </div>
 
               <div className="divider" />
 
-              {/* Action Buttons */}
               <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'space-between' }}>
-                <Link
-                  to="/lectures"
-                  className="btn btn-secondary btn-sm"
-                  style={{ flex: 1 }}
-                >
+                <Link to="/lectures" className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                   <UploadCloud size={14} />
                   Lectures
                 </Link>
-                <Link
-                  to="/chat"
-                  className="btn btn-secondary btn-sm"
-                  style={{ flex: 1 }}
-                >
+                <Link to="/chat" className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                   <MessageSquare size={14} />
                   AI Chat
                 </Link>
-                <Link
-                  to="/quiz"
-                  className="btn btn-primary btn-sm"
-                  style={{ flex: 1 }}
-                >
+                <Link to="/quiz" className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                   <HelpCircle size={14} />
                   Quiz
                 </Link>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Create Module Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Create New Module</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setIsModalOpen(false)}
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form className="modal-form" onSubmit={handleCreateModule}>
-              <div className="input-group">
-                <label htmlFor="modCode">Course Code</label>
-                <input
-                  id="modCode"
-                  type="text"
-                  className="input"
-                  placeholder="e.g. CS 401"
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value)}
-                />
-              </div>
-
-              <div className="input-group">
-                <label htmlFor="modTitle">Module Title</label>
-                <input
-                  id="modTitle"
-                  type="text"
-                  className="input"
-                  placeholder="e.g. Artificial Intelligence"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="input-group">
-                <label htmlFor="modDesc">Description</label>
-                <textarea
-                  id="modDesc"
-                  className="input"
-                  rows={3}
-                  placeholder="Briefly describe what this module covers..."
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Create Module
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>
