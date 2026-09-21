@@ -804,6 +804,10 @@
   font-weight: 400;
 }
 
+.module-edit-button {
+  flex-shrink: 0;
+}
+
 .module-card-title {
   font-size: var(--text-lg);
   font-weight: 600;

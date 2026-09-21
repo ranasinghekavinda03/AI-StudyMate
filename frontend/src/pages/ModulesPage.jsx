@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, HelpCircle, Layers, MessageSquare, Plus, Search, UploadCloud, X } from 'lucide-react'
+import { BookOpen, HelpCircle, Layers, MessageSquare, Pencil, Plus, Search, UploadCloud, X } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/AuthContext'
-import { buildModulePayload } from './moduleForm'
+import { buildModulePayload, getModuleFormValues } from './moduleForm'
 
 export default function ModulesPage() {
   const { token } = useAuth()
@@ -12,13 +12,14 @@ export default function ModulesPage() {
   const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedModule, setSelectedModule] = useState(null)
   const [title, setTitle] = useState('')
   const [code, setCode] = useState('')
   const [description, setDescription] = useState('')
-  const [createError, setCreateError] = useState('')
-  const [creating, setCreating] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
-  const createInFlight = useRef(false)
+  const mutationInFlight = useRef(false)
 
   const loadModules = useCallback(async () => {
     try {
@@ -45,45 +46,71 @@ export default function ModulesPage() {
   }, [loadModules])
 
   const openCreateModal = () => {
-    setCreateError('')
+    setSelectedModule(null)
+    setTitle('')
+    setCode('')
+    setDescription('')
+    setFormError('')
     setSuccessMessage('')
     setIsModalOpen(true)
   }
 
-  const closeCreateModal = () => {
-    if (creating) return
-    setCreateError('')
+  const openEditModal = (module) => {
+    const values = getModuleFormValues(module)
+    setSelectedModule(module)
+    setTitle(values.title)
+    setCode(values.code)
+    setDescription(values.description)
+    setFormError('')
+    setSuccessMessage('')
+    setIsModalOpen(true)
+  }
+
+  const closeModuleModal = () => {
+    if (saving) return
+    setFormError('')
+    setSelectedModule(null)
     setIsModalOpen(false)
   }
 
-  const handleCreateModule = async (event) => {
+  const handleModuleSubmit = async (event) => {
     event.preventDefault()
-    if (createInFlight.current) return
+    if (mutationInFlight.current) return
 
-    setCreateError('')
+    setFormError('')
     let payload
     try {
-      payload = buildModulePayload({ title, code, description })
+      payload = buildModulePayload(
+        { title, code, description },
+        selectedModule ? { emptyOptionalValue: '' } : undefined,
+      )
     } catch (validationError) {
-      setCreateError(validationError.message)
+      setFormError(validationError.message)
       return
     }
 
-    createInFlight.current = true
-    setCreating(true)
+    mutationInFlight.current = true
+    setSaving(true)
     try {
-      await api.modules.create(payload, token)
+      if (selectedModule) {
+        await api.modules.update(selectedModule.id, payload, token)
+      } else {
+        await api.modules.create(payload, token)
+      }
+      const successAction = selectedModule ? 'updated' : 'created'
       setTitle('')
       setCode('')
       setDescription('')
+      setSelectedModule(null)
       setIsModalOpen(false)
-      setSuccessMessage(`Module “${payload.title}” was created successfully.`)
+      setSuccessMessage(`Module “${payload.title}” was ${successAction} successfully.`)
       await loadModules()
     } catch (requestError) {
-      setCreateError(requestError.message || 'Unable to create the module. Please try again.')
+      const action = selectedModule ? 'update' : 'create'
+      setFormError(requestError.message || `Unable to ${action} the module. Please try again.`)
     } finally {
-      createInFlight.current = false
-      setCreating(false)
+      mutationInFlight.current = false
+      setSaving(false)
     }
   }
 
@@ -102,7 +129,7 @@ export default function ModulesPage() {
             <h1>Study Modules</h1>
             <p>Browse your academic courses and their uploaded lecture collections.</p>
           </div>
-          <button type="button" className="btn btn-primary" onClick={openCreateModal} disabled={loading || creating}>
+          <button type="button" className="btn btn-primary" onClick={openCreateModal} disabled={loading || saving}>
             <Plus size={18} />
             Create Module
           </button>
@@ -184,6 +211,15 @@ export default function ModulesPage() {
                     <h3 className="module-card-title">{module.title}</h3>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm module-edit-button"
+                  onClick={() => openEditModal(module)}
+                  aria-label={`Edit ${module.title}`}
+                >
+                  <Pencil size={15} />
+                  Edit
+                </button>
               </div>
 
               <p className="module-card-desc">
@@ -217,23 +253,23 @@ export default function ModulesPage() {
       )}
 
       {isModalOpen && (
-        <div className="modal-overlay" onClick={closeCreateModal}>
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="create-module-title" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeModuleModal}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="module-form-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2 id="create-module-title">Create New Module</h2>
+              <h2 id="module-form-title">{selectedModule ? 'Edit Module' : 'Create New Module'}</h2>
               <button
                 type="button"
                 className="modal-close"
-                onClick={closeCreateModal}
-                aria-label="Close create module form"
-                disabled={creating}
+                onClick={closeModuleModal}
+                aria-label="Close module form"
+                disabled={saving}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form className="modal-form" onSubmit={handleCreateModule}>
-              {createError && <div className="auth-error" role="alert">{createError}</div>}
+            <form className="modal-form" onSubmit={handleModuleSubmit}>
+              {formError && <div className="auth-error" role="alert">{formError}</div>}
 
               <div className="input-group">
                 <label htmlFor="moduleTitle">Module Title</label>
@@ -244,7 +280,7 @@ export default function ModulesPage() {
                   placeholder="e.g. Machine Learning"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  disabled={creating}
+                  disabled={saving}
                   autoFocus
                 />
               </div>
@@ -258,7 +294,7 @@ export default function ModulesPage() {
                   placeholder="e.g. IT3091"
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
-                  disabled={creating}
+                  disabled={saving}
                 />
               </div>
 
@@ -271,16 +307,16 @@ export default function ModulesPage() {
                   placeholder="Briefly describe what this module covers..."
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  disabled={creating}
+                  disabled={saving}
                 />
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={closeCreateModal} disabled={creating}>
+                <button type="button" className="btn btn-secondary" onClick={closeModuleModal} disabled={saving}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Module'}
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (selectedModule ? 'Updating...' : 'Creating...') : (selectedModule ? 'Update Module' : 'Create Module')}
                 </button>
               </div>
             </form>
