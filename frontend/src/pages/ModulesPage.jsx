@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, HelpCircle, Layers, MessageSquare, Search, UploadCloud } from 'lucide-react'
+import { BookOpen, HelpCircle, Layers, MessageSquare, Plus, Search, UploadCloud, X } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/AuthContext'
+import { buildModulePayload } from './moduleForm'
 
 export default function ModulesPage() {
   const { token } = useAuth()
@@ -10,35 +11,81 @@ export default function ModulesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [code, setCode] = useState('')
+  const [description, setDescription] = useState('')
+  const [createError, setCreateError] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const createInFlight = useRef(false)
 
-  useEffect(() => {
-    let active = true
-
-    async function loadModules() {
-      setLoading(true)
-      setError('')
-
-      try {
-        const data = await api.modules.list(token)
-        if (!active) return
-        if (!Array.isArray(data)) {
-          throw new Error('The server returned an invalid module list.')
-        }
-        setModules(data)
-      } catch (requestError) {
-        if (!active) return
-        setModules([])
-        setError(requestError.message || 'Unable to load modules. Please try again.')
-      } finally {
-        if (active) setLoading(false)
+  const loadModules = useCallback(async () => {
+    try {
+      const data = await api.modules.list(token)
+      if (!Array.isArray(data)) {
+        throw new Error('The server returned an invalid module list.')
       }
-    }
-
-    loadModules()
-    return () => {
-      active = false
+      setModules(data)
+      setError('')
+      return true
+    } catch (requestError) {
+      setModules([])
+      setError(requestError.message || 'Unable to load modules. Please try again.')
+      return false
+    } finally {
+      setLoading(false)
     }
   }, [token])
+
+  useEffect(() => {
+    // The module list is an external API resource and must be synchronized on mount/token change.
+    // oxlint-disable-next-line react/set-state-in-effect
+    loadModules()
+  }, [loadModules])
+
+  const openCreateModal = () => {
+    setCreateError('')
+    setSuccessMessage('')
+    setIsModalOpen(true)
+  }
+
+  const closeCreateModal = () => {
+    if (creating) return
+    setCreateError('')
+    setIsModalOpen(false)
+  }
+
+  const handleCreateModule = async (event) => {
+    event.preventDefault()
+    if (createInFlight.current) return
+
+    setCreateError('')
+    let payload
+    try {
+      payload = buildModulePayload({ title, code, description })
+    } catch (validationError) {
+      setCreateError(validationError.message)
+      return
+    }
+
+    createInFlight.current = true
+    setCreating(true)
+    try {
+      await api.modules.create(payload, token)
+      setTitle('')
+      setCode('')
+      setDescription('')
+      setIsModalOpen(false)
+      setSuccessMessage(`Module “${payload.title}” was created successfully.`)
+      await loadModules()
+    } catch (requestError) {
+      setCreateError(requestError.message || 'Unable to create the module. Please try again.')
+    } finally {
+      createInFlight.current = false
+      setCreating(false)
+    }
+  }
 
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const filteredModules = modules.filter((module) =>
@@ -55,8 +102,18 @@ export default function ModulesPage() {
             <h1>Study Modules</h1>
             <p>Browse your academic courses and their uploaded lecture collections.</p>
           </div>
+          <button type="button" className="btn btn-primary" onClick={openCreateModal} disabled={loading || creating}>
+            <Plus size={18} />
+            Create Module
+          </button>
         </div>
       </div>
+
+      {successMessage && (
+        <div className="module-success-message" role="status">
+          {successMessage}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-6)', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
@@ -99,6 +156,9 @@ export default function ModulesPage() {
           </div>
           <div className="empty-state-title">No modules yet</div>
           <div className="empty-state-desc">Create your first module to organize your study materials.</div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}>
+            <Plus size={16} /> Create Module
+          </button>
         </div>
       ) : filteredModules.length === 0 ? (
         <div className="empty-state card">
@@ -153,6 +213,78 @@ export default function ModulesPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={closeCreateModal}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="create-module-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2 id="create-module-title">Create New Module</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeCreateModal}
+                aria-label="Close create module form"
+                disabled={creating}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form className="modal-form" onSubmit={handleCreateModule}>
+              {createError && <div className="auth-error" role="alert">{createError}</div>}
+
+              <div className="input-group">
+                <label htmlFor="moduleTitle">Module Title</label>
+                <input
+                  id="moduleTitle"
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Machine Learning"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  disabled={creating}
+                  autoFocus
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="moduleCode">Course Code <span className="optional-label">Optional</span></label>
+                <input
+                  id="moduleCode"
+                  type="text"
+                  className="input"
+                  placeholder="e.g. IT3091"
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  disabled={creating}
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="moduleDescription">Description <span className="optional-label">Optional</span></label>
+                <textarea
+                  id="moduleDescription"
+                  className="input"
+                  rows={3}
+                  placeholder="Briefly describe what this module covers..."
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  disabled={creating}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={closeCreateModal} disabled={creating}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={creating}>
+                  {creating ? 'Creating...' : 'Create Module'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
