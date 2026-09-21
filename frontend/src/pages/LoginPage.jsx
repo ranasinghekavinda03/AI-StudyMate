@@ -4,8 +4,8 @@ import { GraduationCap, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('alex.johnson@university.edu')
-  const [password, setPassword] = useState('password123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,17 +26,11 @@ export default function LoginPage() {
       setLoading(true)
       await login(email, password)
       navigate(from, { replace: true })
-    } catch {
-      setError('Invalid email or password. Please try again.')
+    } catch (err) {
+      setError(err.message || 'Unable to sign in. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleDemoLogin = async () => {
-    setLoading(true)
-    await login('alex.johnson@university.edu', 'demo1234')
-    navigate('/dashboard', { replace: true })
   }
 
   return (
@@ -121,17 +115,6 @@ export default function LoginPage() {
               {!loading && <ArrowRight size={18} />}
             </button>
 
-            <div className="auth-divider">or continue with</div>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ width: '100%' }}
-              onClick={handleDemoLogin}
-              disabled={loading}
-            >
-              🚀 Quick Demo Login
-            </button>
           </form>
 
           <div className="auth-footer">
