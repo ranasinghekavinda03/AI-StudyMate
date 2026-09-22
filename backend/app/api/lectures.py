@@ -15,6 +15,7 @@ from app.core.config import BACKEND_DIR, settings
 from app.schemas.lecture import LectureCreate, LectureResponse, LectureUploadResponse
 from app.services.document_extractor import DocumentExtractionError, extract_document
 from app.services.document_ingestion import chunk_document
+from app.services.embedding_service import EmbeddingError, embed_texts
 
 router = APIRouter(prefix="/lectures", tags=["lectures"])
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024
@@ -131,6 +132,14 @@ async def upload_lecture(
             detail="No usable text chunks could be created from the document.",
         )
 
+    try:
+        embeddings = embed_texts([chunk.chunk_text for chunk in chunks])
+    except EmbeddingError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document embedding failed; no lecture or chunks were saved.",
+        ) from exc
+
     upload_dir = Path(settings.UPLOAD_DIR)
     if not upload_dir.is_absolute():
         upload_dir = BACKEND_DIR / upload_dir
@@ -158,8 +167,9 @@ async def upload_lecture(
                 page_number=chunk.page_number,
                 chunk_index=chunk.chunk_index,
                 chunk_text=chunk.chunk_text,
+                embedding=embedding,
             )
-            for chunk in chunks
+            for chunk, embedding in zip(chunks, embeddings)
         ])
         db.commit()
         db.refresh(lecture)

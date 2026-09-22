@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 
+from app.core.config import settings
 from app.db.session import Base
 
 
@@ -15,6 +17,8 @@ class DocumentChunk(Base):
     page_number = Column(Integer, nullable=True)
     chunk_index = Column(Integer, nullable=False, default=0)
     chunk_text = Column(Text, nullable=False)
+    # Nullable only so chunks created before migration 002 can be backfilled.
+    embedding = Column(Vector(settings.EMBEDDING_DIMENSION), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships

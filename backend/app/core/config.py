@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     EMBEDDING_PROVIDER: str = "local"
     EMBEDDING_API_KEY: str = ""
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_DIMENSION: int = 384
+    RETRIEVAL_TOP_K: int = 5
+    RETRIEVAL_MAX_TOP_K: int = 20
     FILE_STORAGE: str = "local"
     UPLOAD_DIR: str = "uploads"
     CHUNK_SIZE_WORDS: int = 500
