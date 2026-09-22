@@ -919,6 +919,20 @@
   font-size: var(--text-sm);
 }
 
+.lecture-title-field {
+  margin-bottom: var(--space-4);
+}
+
+.lecture-upload-message {
+  margin-bottom: var(--space-4);
+}
+
+.lecture-upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
 /* ---------- Chat Layout ---------- */
 .chat-layout {
   display: grid;

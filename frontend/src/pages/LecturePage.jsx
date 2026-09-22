@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, FileText, Filter, HelpCircle, MessageSquare, UploadCloud } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/AuthContext'
 import { filterLecturesByModule, moduleLabel } from './lectureDisplay'
+import { validateLectureUpload } from './lectureUpload'
 
 function formatUploadDate(value) {
   const date = new Date(value)
@@ -25,25 +26,35 @@ export default function LecturePage() {
   const [modulesError, setModulesError] = useState('')
   const [selectedModule, setSelectedModule] = useState('')
   const [filterModule, setFilterModule] = useState('all')
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [lectureTitle, setLectureTitle] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadSuccess, setUploadSuccess] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const uploadInFlight = useRef(false)
+  const fileInputRef = useRef(null)
+
+  const loadLectures = useCallback(async (isActive = () => true) => {
+    try {
+      const data = await api.lectures.list(null, token)
+      if (!isActive()) return false
+      if (!Array.isArray(data)) throw new Error('The server returned an invalid lecture list.')
+      setLectures(data)
+      setLecturesError('')
+      return true
+    } catch (requestError) {
+      if (!isActive()) return false
+      setLectures([])
+      setLecturesError(requestError.message || 'Unable to load lectures. Please try again.')
+      return false
+    } finally {
+      if (isActive()) setLecturesLoading(false)
+    }
+  }, [token])
 
   useEffect(() => {
     let active = true
-
-    async function loadLectures() {
-      try {
-        const data = await api.lectures.list(null, token)
-        if (!active) return
-        if (!Array.isArray(data)) throw new Error('The server returned an invalid lecture list.')
-        setLectures(data)
-        setLecturesError('')
-      } catch (requestError) {
-        if (!active) return
-        setLectures([])
-        setLecturesError(requestError.message || 'Unable to load lectures. Please try again.')
-      } finally {
-        if (active) setLecturesLoading(false)
-      }
-    }
 
     async function loadModules() {
       try {
@@ -63,14 +74,14 @@ export default function LecturePage() {
 
     // These effects synchronize the page with authenticated backend resources.
     // oxlint-disable-next-line react/set-state-in-effect
-    loadLectures()
+    loadLectures(() => active)
     // oxlint-disable-next-line react/set-state-in-effect
     loadModules()
 
     return () => {
       active = false
     }
-  }, [token])
+  }, [loadLectures, token])
 
   const modulesById = useMemo(
     () => new Map(modules.map((module) => [module.id, module])),
@@ -80,6 +91,55 @@ export default function LecturePage() {
   const filteredLectures = filterLecturesByModule(lectures, filterModule)
 
   const noModules = !modulesLoading && !modulesError && modules.length === 0
+  const uploadDisabled = uploading || modulesLoading || Boolean(modulesError) || noModules
+
+  const chooseFile = (file) => {
+    if (!file) return
+    setSelectedFile(file)
+    setUploadError('')
+    setUploadSuccess('')
+  }
+
+  const handleUpload = async (event) => {
+    event.preventDefault()
+    if (uploadInFlight.current) return
+
+    setUploadError('')
+    setUploadSuccess('')
+    let normalized
+    try {
+      normalized = validateLectureUpload({
+        moduleId: selectedModule,
+        file: selectedFile,
+        title: lectureTitle,
+      })
+    } catch (validationError) {
+      setUploadError(validationError.message)
+      return
+    }
+
+    uploadInFlight.current = true
+    setUploading(true)
+    try {
+      const uploaded = await api.lectures.upload(
+        selectedFile,
+        selectedModule,
+        normalized.title,
+        token,
+      )
+      setSelectedFile(null)
+      setLectureTitle('')
+      setSelectedModule('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      setUploadSuccess(`Lecture “${uploaded.title}” was uploaded successfully.`)
+      await loadLectures()
+    } catch (requestError) {
+      setUploadError(requestError.message || 'Unable to upload the lecture. Please try again.')
+    } finally {
+      uploadInFlight.current = false
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="stagger-children">
@@ -114,7 +174,7 @@ export default function LecturePage() {
               ))}
             </select>
           </div>
-          <span className="badge badge-neutral">Upload integration coming next</span>
+          <span className="badge badge-accent">Secure document upload</span>
         </div>
 
         {modulesLoading && <div className="lecture-inline-status">Loading modules...</div>}
@@ -125,20 +185,80 @@ export default function LecturePage() {
           </div>
         )}
 
-        <div className="upload-zone upload-zone-disabled" aria-disabled="true">
-          <div className="upload-zone-icon">
-            <UploadCloud size={30} />
+        <form onSubmit={handleUpload}>
+          {uploadSuccess && <div className="module-success-message" role="status">{uploadSuccess}</div>}
+          {uploadError && <div className="auth-error lecture-upload-message" role="alert">{uploadError}</div>}
+
+          <div className="input-group lecture-title-field">
+            <label htmlFor="lectureTitle">Lecture Title <span className="optional-label">Optional</span></label>
+            <input
+              id="lectureTitle"
+              type="text"
+              className="input"
+              placeholder="Defaults to the uploaded filename"
+              value={lectureTitle}
+              onChange={(event) => setLectureTitle(event.target.value)}
+              disabled={uploadDisabled}
+              maxLength={255}
+            />
           </div>
-          <div className="upload-zone-title">Document upload is not enabled yet</div>
-          <div className="upload-zone-desc">
-            Select a real module above. File upload will be connected in the next implementation step.
+
+          <div
+            className={`upload-zone ${dragOver ? 'dragover' : ''} ${uploadDisabled ? 'upload-zone-disabled' : ''}`}
+            role="button"
+            tabIndex={uploadDisabled ? -1 : 0}
+            aria-disabled={uploadDisabled}
+            onClick={() => !uploadDisabled && fileInputRef.current?.click()}
+            onKeyDown={(event) => {
+              if (!uploadDisabled && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault()
+                fileInputRef.current?.click()
+              }
+            }}
+            onDragOver={(event) => {
+              event.preventDefault()
+              if (!uploadDisabled) setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(event) => {
+              event.preventDefault()
+              setDragOver(false)
+              if (!uploadDisabled) chooseFile(event.dataTransfer.files?.[0])
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt"
+              hidden
+              disabled={uploadDisabled}
+              onChange={(event) => chooseFile(event.target.files?.[0])}
+            />
+            <div className="upload-zone-icon">
+              <UploadCloud size={30} />
+            </div>
+            <div className="upload-zone-title">
+              {selectedFile ? selectedFile.name : 'Click to select or drag and drop a lecture file'}
+            </div>
+            <div className="upload-zone-desc">
+              {selectedFile
+                ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB selected`
+                : 'PDF, DOCX, or TXT up to 25 MB'}
+            </div>
+            <div className="upload-zone-formats">
+              <span className="badge badge-neutral">PDF</span>
+              <span className="badge badge-neutral">DOCX</span>
+              <span className="badge badge-neutral">TXT</span>
+            </div>
           </div>
-          <div className="upload-zone-formats">
-            <span className="badge badge-neutral">PDF</span>
-            <span className="badge badge-neutral">DOCX</span>
-            <span className="badge badge-neutral">TXT</span>
+
+          <div className="lecture-upload-actions">
+            <button type="submit" className="btn btn-primary" disabled={uploadDisabled}>
+              <UploadCloud size={17} />
+              {uploading ? 'Uploading & extracting...' : 'Upload Lecture'}
+            </button>
           </div>
-        </div>
+        </form>
       </div>
 
       <div className="section-card">

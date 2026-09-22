@@ -1,11 +1,13 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const env = import.meta.env || {}
+const BASE_URL = env.VITE_API_BASE_URL || env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 async function request(endpoint, options = {}) {
   const { token, headers = {}, ...customConfig } = options
+  const isFormData = typeof FormData !== 'undefined' && customConfig.body instanceof FormData
   const config = {
     ...customConfig,
     headers: {
-      'Content-Type': 'application/json',
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -104,6 +106,18 @@ const api = {
         body: JSON.stringify(lectureData),
         token,
       }),
+    upload: (file, moduleId, title, token) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('module_id', moduleId)
+      if (title) formData.append('title', title)
+
+      return request('/lectures/upload', {
+        method: 'POST',
+        body: formData,
+        token,
+      })
+    },
     get: (id, token) =>
       request(`/lectures/${id}`, {
         method: 'GET',
