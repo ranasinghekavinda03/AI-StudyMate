@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, HelpCircle, Layers, MessageSquare, Pencil, Plus, Search, UploadCloud, X } from 'lucide-react'
+import { AlertTriangle, BookOpen, HelpCircle, Layers, MessageSquare, Pencil, Plus, Search, Trash2, UploadCloud, X } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/AuthContext'
 import { buildModulePayload, getModuleFormValues } from './moduleForm'
+import { deleteModuleAndReload } from './moduleDelete'
 
 export default function ModulesPage() {
   const { token } = useAuth()
@@ -19,7 +20,11 @@ export default function ModulesPage() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [moduleToDelete, setModuleToDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const mutationInFlight = useRef(false)
+  const deleteInFlight = useRef(false)
 
   const loadModules = useCallback(async () => {
     try {
@@ -111,6 +116,43 @@ export default function ModulesPage() {
     } finally {
       mutationInFlight.current = false
       setSaving(false)
+    }
+  }
+
+  const openDeleteConfirmation = (module) => {
+    setModuleToDelete(module)
+    setDeleteError('')
+    setSuccessMessage('')
+  }
+
+  const closeDeleteConfirmation = () => {
+    if (deleting) return
+    setModuleToDelete(null)
+    setDeleteError('')
+  }
+
+  const confirmModuleDeletion = async () => {
+    if (!moduleToDelete || deleteInFlight.current) return
+
+    const moduleBeingDeleted = moduleToDelete
+    deleteInFlight.current = true
+    setDeleting(true)
+    setDeleteError('')
+
+    try {
+      await deleteModuleAndReload({
+        moduleId: moduleBeingDeleted.id,
+        token,
+        deleteRequest: api.modules.delete,
+        reloadModules: loadModules,
+      })
+      setModuleToDelete(null)
+      setSuccessMessage(`Module “${moduleBeingDeleted.title}” was deleted successfully.`)
+    } catch (requestError) {
+      setDeleteError(requestError.message || 'Unable to delete the module. Please try again.')
+    } finally {
+      deleteInFlight.current = false
+      setDeleting(false)
     }
   }
 
@@ -211,15 +253,26 @@ export default function ModulesPage() {
                     <h3 className="module-card-title">{module.title}</h3>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm module-edit-button"
-                  onClick={() => openEditModal(module)}
-                  aria-label={`Edit ${module.title}`}
-                >
-                  <Pencil size={15} />
-                  Edit
-                </button>
+                <div className="module-card-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm module-edit-button"
+                    onClick={() => openEditModal(module)}
+                    aria-label={`Edit ${module.title}`}
+                  >
+                    <Pencil size={15} />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm module-delete-button"
+                    onClick={() => openDeleteConfirmation(module)}
+                    aria-label={`Delete ${module.title}`}
+                  >
+                    <Trash2 size={15} />
+                    Delete
+                  </button>
+                </div>
               </div>
 
               <p className="module-card-desc">
@@ -320,6 +373,54 @@ export default function ModulesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {moduleToDelete && (
+        <div className="modal-overlay" onClick={closeDeleteConfirmation}>
+          <div
+            className="modal delete-confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-module-title"
+            aria-describedby="delete-module-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="delete-confirmation-heading">
+                <span className="delete-confirmation-icon">
+                  <AlertTriangle size={22} />
+                </span>
+                <h2 id="delete-module-title">Delete module?</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeDeleteConfirmation}
+                aria-label="Close delete confirmation"
+                disabled={deleting}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {deleteError && <div className="auth-error delete-confirmation-error" role="alert">{deleteError}</div>}
+
+            <p id="delete-module-description" className="delete-confirmation-text">
+              Are you sure you want to delete <strong>{moduleToDelete.title}</strong>? Its associated
+              records will also be removed. This action cannot be undone.
+            </p>
+
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={closeDeleteConfirmation} disabled={deleting}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={confirmModuleDeletion} disabled={deleting}>
+                <Trash2 size={16} />
+                {deleting ? 'Deleting...' : 'Delete Module'}
+              </button>
+            </div>
           </div>
         </div>
       )}

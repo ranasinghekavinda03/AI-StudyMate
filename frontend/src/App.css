@@ -808,6 +808,26 @@
   flex-shrink: 0;
 }
 
+.module-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.module-delete-button {
+  color: var(--danger);
+}
+
+.module-delete-button:hover {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+.delete-confirmation-error {
+  margin-bottom: var(--space-4);
+}
+
 .module-card-title {
   font-size: var(--text-lg);
   font-weight: 600;
