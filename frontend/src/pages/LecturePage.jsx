@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, FileText, Filter, HelpCircle, MessageSquare, UploadCloud } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileText, Filter, HelpCircle, MessageSquare, Trash2, UploadCloud, X } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/AuthContext'
 import { filterLecturesByModule, moduleLabel } from './lectureDisplay'
+import { deleteLectureAndReload } from './lectureDelete'
 import { validateLectureUpload } from './lectureUpload'
 
 function formatUploadDate(value) {
@@ -32,7 +33,12 @@ export default function LecturePage() {
   const [uploadError, setUploadError] = useState('')
   const [uploadSuccess, setUploadSuccess] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const [lectureToDelete, setLectureToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteSuccess, setDeleteSuccess] = useState('')
   const uploadInFlight = useRef(false)
+  const deleteInFlight = useRef(false)
   const fileInputRef = useRef(null)
 
   const loadLectures = useCallback(async (isActive = () => true) => {
@@ -138,6 +144,43 @@ export default function LecturePage() {
     } finally {
       uploadInFlight.current = false
       setUploading(false)
+    }
+  }
+
+  const openDeleteConfirmation = (lecture) => {
+    setLectureToDelete(lecture)
+    setDeleteError('')
+    setDeleteSuccess('')
+  }
+
+  const closeDeleteConfirmation = () => {
+    if (deleting) return
+    setLectureToDelete(null)
+    setDeleteError('')
+  }
+
+  const confirmLectureDeletion = async () => {
+    if (!lectureToDelete || deleteInFlight.current) return
+
+    const lectureBeingDeleted = lectureToDelete
+    deleteInFlight.current = true
+    setDeleting(true)
+    setDeleteError('')
+
+    try {
+      await deleteLectureAndReload({
+        lectureId: lectureBeingDeleted.id,
+        token,
+        deleteRequest: api.lectures.delete,
+        reloadLectures: loadLectures,
+      })
+      setLectureToDelete(null)
+      setDeleteSuccess(`Lecture “${lectureBeingDeleted.title}” was deleted successfully.`)
+    } catch (requestError) {
+      setDeleteError(requestError.message || 'Unable to delete the lecture. Please try again.')
+    } finally {
+      deleteInFlight.current = false
+      setDeleting(false)
     }
   }
 
@@ -285,6 +328,7 @@ export default function LecturePage() {
         </div>
 
         <div style={{ padding: 'var(--space-4)' }}>
+          {deleteSuccess && <div className="module-success-message" role="status">{deleteSuccess}</div>}
           {lecturesLoading ? (
             <div className="empty-state" role="status" aria-live="polite">
               <div className="animate-spin module-loading-spinner" />
@@ -359,6 +403,15 @@ export default function LecturePage() {
                         <HelpCircle size={16} />
                         <span>Quiz</span>
                       </Link>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm lecture-delete-button"
+                        onClick={() => openDeleteConfirmation(lecture)}
+                        aria-label={`Delete ${lecture.title}`}
+                      >
+                        <Trash2 size={16} />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
                 )
@@ -367,6 +420,57 @@ export default function LecturePage() {
           )}
         </div>
       </div>
+
+      {lectureToDelete && (
+        <div className="modal-overlay" onClick={closeDeleteConfirmation}>
+          <div
+            className="modal delete-confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-lecture-title"
+            aria-describedby="delete-lecture-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="delete-confirmation-heading">
+                <span className="delete-confirmation-icon"><AlertTriangle size={22} /></span>
+                <h2 id="delete-lecture-title">Delete lecture?</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeDeleteConfirmation}
+                aria-label="Close delete confirmation"
+                disabled={deleting}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {deleteError && <div className="auth-error delete-confirmation-error" role="alert">{deleteError}</div>}
+
+            <p id="delete-lecture-description" className="delete-confirmation-text">
+              Are you sure you want to delete <strong>{lectureToDelete.title}</strong>?
+              {' '}This action cannot be undone.
+            </p>
+
+            <div className="lecture-delete-details">
+              <span className="badge badge-neutral">{(lectureToDelete.file_type || 'file').toUpperCase()}</span>
+              <span>{modulesById.has(lectureToDelete.module_id) ? moduleLabel(modulesById.get(lectureToDelete.module_id)) : 'Unknown module'}</span>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={closeDeleteConfirmation} disabled={deleting}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={confirmLectureDeletion} disabled={deleting}>
+                <Trash2 size={16} />
+                {deleting ? 'Deleting...' : 'Delete Lecture'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
