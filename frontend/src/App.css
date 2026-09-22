@@ -903,6 +903,22 @@
   margin-top: var(--space-4);
 }
 
+.upload-zone-disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.upload-zone-disabled:hover {
+  border-color: var(--border);
+  background: transparent;
+}
+
+.lecture-inline-status {
+  margin-bottom: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 /* ---------- Chat Layout ---------- */
 .chat-layout {
   display: grid;
