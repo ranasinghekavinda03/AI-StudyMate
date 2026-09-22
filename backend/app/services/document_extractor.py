@@ -15,16 +15,25 @@ class DocumentExtractionError(ValueError):
 
 
 @dataclass(frozen=True)
+class ExtractedPage:
+    """A text unit with a real source page number when the format provides one."""
+
+    text: str
+    page_number: int | None
+
+
+@dataclass(frozen=True)
 class ExtractedDocument:
-    pages: list[str]
+    pages: list[ExtractedPage]
 
     @property
     def text(self) -> str:
-        return "\n\n".join(page for page in self.pages if page).strip()
+        return "\n\n".join(page.text for page in self.pages if page.text).strip()
 
     @property
     def page_count(self) -> int:
-        return len(self.pages)
+        numbered_pages = [page.page_number for page in self.pages if page.page_number is not None]
+        return max(numbered_pages, default=0)
 
 
 def extract_document(data: bytes, filename: str) -> ExtractedDocument:
@@ -39,7 +48,10 @@ def extract_document(data: bytes, filename: str) -> ExtractedDocument:
                     reader.decrypt("")
                 except Exception as exc:
                     raise DocumentExtractionError("Password-protected PDFs are not supported.") from exc
-            pages = [(page.extract_text() or "").strip() for page in reader.pages]
+            pages = [
+                ExtractedPage(text=(page.extract_text() or "").strip(), page_number=index)
+                for index, page in enumerate(reader.pages, start=1)
+            ]
         elif extension == ".docx":
             document = Document(BytesIO(data))
             blocks = [paragraph.text.strip() for paragraph in document.paragraphs if paragraph.text.strip()]
@@ -48,9 +60,9 @@ def extract_document(data: bytes, filename: str) -> ExtractedDocument:
                     cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
                     if cells:
                         blocks.append("\t".join(cells))
-            pages = ["\n".join(blocks)]
+            pages = [ExtractedPage(text="\n".join(blocks), page_number=None)]
         elif extension == ".txt":
-            pages = [data.decode("utf-8-sig").strip()]
+            pages = [ExtractedPage(text=data.decode("utf-8-sig").strip(), page_number=None)]
         else:
             raise DocumentExtractionError("Unsupported file type. Upload a PDF, DOCX, or TXT file.")
     except DocumentExtractionError:

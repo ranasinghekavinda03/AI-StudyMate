@@ -11,7 +11,8 @@ class DocumentChunk(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     lecture_id = Column(String(36), ForeignKey("lectures.id", ondelete="CASCADE"), nullable=False, index=True)
-    page_number = Column(Integer, nullable=False, default=1)
+    # PDF pages are 1-based. Formats without real pages (DOCX/TXT) store NULL.
+    page_number = Column(Integer, nullable=True)
     chunk_index = Column(Integer, nullable=False, default=0)
     chunk_text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

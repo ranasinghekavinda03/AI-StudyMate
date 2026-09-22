@@ -3,6 +3,7 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user
@@ -13,6 +14,7 @@ from app.models.chunk import DocumentChunk
 from app.core.config import BACKEND_DIR, settings
 from app.schemas.lecture import LectureCreate, LectureResponse, LectureUploadResponse
 from app.services.document_extractor import DocumentExtractionError, extract_document
+from app.services.document_ingestion import chunk_document
 
 router = APIRouter(prefix="/lectures", tags=["lectures"])
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024
@@ -118,6 +120,17 @@ async def upload_lecture(
             detail="Title must contain between 2 and 255 characters.",
         )
 
+    chunks = chunk_document(
+        extracted,
+        chunk_size_words=settings.CHUNK_SIZE_WORDS,
+        chunk_overlap_words=settings.CHUNK_OVERLAP_WORDS,
+    )
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No usable text chunks could be created from the document.",
+        )
+
     upload_dir = Path(settings.UPLOAD_DIR)
     if not upload_dir.is_absolute():
         upload_dir = BACKEND_DIR / upload_dir
@@ -138,15 +151,32 @@ async def upload_lecture(
             page_count=extracted.page_count,
         )
         db.add(lecture)
+        db.flush()
+        db.add_all([
+            DocumentChunk(
+                lecture_id=lecture.id,
+                page_number=chunk.page_number,
+                chunk_index=chunk.chunk_index,
+                chunk_text=chunk.chunk_text,
+            )
+            for chunk in chunks
+        ])
         db.commit()
         db.refresh(lecture)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        stored_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document ingestion failed; no lecture or chunks were saved.",
+        ) from exc
     except Exception:
         db.rollback()
         stored_path.unlink(missing_ok=True)
         raise
 
     lecture_data = LectureResponse.model_validate(lecture).model_dump()
-    lecture_data["chunks_count"] = 0
+    lecture_data["chunks_count"] = len(chunks)
     return LectureUploadResponse(**lecture_data, extracted_text=extracted.text)
 
 

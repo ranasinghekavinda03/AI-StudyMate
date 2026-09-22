@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     EMBEDDING_API_KEY: str = ""
     FILE_STORAGE: str = "local"
     UPLOAD_DIR: str = "uploads"
+    CHUNK_SIZE_WORDS: int = 500
+    CHUNK_OVERLAP_WORDS: int = 75
 
     model_config = SettingsConfigDict(
         env_file=(str(BACKEND_DIR / ".env"), ".env"),
