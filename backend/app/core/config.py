@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     LLM_PROVIDER: str = "gemini"
     LLM_API_KEY: str = ""
+    LLM_MODEL: str = "gemini-3.8-flash"
+    LLM_TIMEOUT_SECONDS: int = 30
     EMBEDDING_PROVIDER: str = "local"
     EMBEDDING_API_KEY: str = ""
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
