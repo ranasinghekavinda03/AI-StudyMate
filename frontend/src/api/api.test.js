@@ -59,3 +59,23 @@ test('lecture delete handles an empty 204 response without parsing JSON', async 
     globalThis.fetch = originalFetch
   }
 })
+
+test('RAG chat sends an authenticated JSON request through the shared helper', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ answer: 'Grounded [S1]', citations: [] }) }
+  }
+  const payload = { question: 'Explain early stopping', module_id: 'module-1', lecture_id: 'lecture-1', top_k: 5 }
+  try {
+    await api.rag.chat(payload, 'access-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/rag/chat')
+    assert.equal(captured.config.method, 'POST')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+    assert.equal(captured.config.headers['Content-Type'], 'application/json')
+    assert.deepEqual(JSON.parse(captured.config.body), payload)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

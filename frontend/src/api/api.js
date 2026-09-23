@@ -129,6 +129,15 @@ const api = {
         token,
       }),
   },
+
+  rag: {
+    chat: (payload, token) =>
+      request('/rag/chat', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }),
+  },
 }
 
 export default api
