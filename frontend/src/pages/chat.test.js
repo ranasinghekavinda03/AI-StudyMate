@@ -59,7 +59,7 @@ test('PDF and nullable-page citation labels never invent pages', () => {
 test('multiple and empty citation lists are preserved exactly', async () => {
   const assistantMessages = []
   for (const response of [
-    { answer: 'Two sources [S1] [S2]', citations: [{ source_id: 'S1' }, { source_id: 'S2' }] },
+    { answer: 'Four sources [S3, S4] [S1] [S5]', citations: [{ source_id: 'S3' }, { source_id: 'S4' }, { source_id: 'S1' }, { source_id: 'S5' }] },
     { answer: "I couldn't find enough information in your uploaded study material to answer that question.", citations: [] },
   ]) {
     await submitChatQuestion({
@@ -69,7 +69,7 @@ test('multiple and empty citation lists are preserved exactly', async () => {
       onAssistantMessage: (message) => assistantMessages.push(message),
     })
   }
-  assert.deepEqual(assistantMessages[0].citations.map((item) => item.source_id), ['S1', 'S2'])
+  assert.deepEqual(assistantMessages[0].citations.map((item) => item.source_id), ['S3', 'S4', 'S1', 'S5'])
   assert.deepEqual(assistantMessages[1].citations, [])
   assert.match(assistantMessages[1].content, /couldn't find enough information/)
 })

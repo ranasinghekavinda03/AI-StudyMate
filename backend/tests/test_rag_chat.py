@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from app.core.config import settings
 from app.services import rag_pipeline
 from app.services.llm_service import LLMProviderError
-from app.services.rag_pipeline import INSUFFICIENT_CONTEXT_ANSWER, answer_question, build_grounded_prompt
+from app.services.rag_pipeline import INSUFFICIENT_CONTEXT_ANSWER, _citation_for, _validated_answer, answer_question, build_grounded_prompt
 from app.services.retrieval_service import RetrievedChunk
 
 
@@ -17,6 +17,14 @@ def _match(number, *, page_number=None, module_id="module-1", lecture_id=None, t
         chunk_text=text or f"Source text {number}",
     )
     return RetrievedChunk(chunk=chunk, lecture_title=f"Lecture {number}", module_id=module_id, score=0.9)
+
+
+def _validate_citations(answer, count=5):
+    citation_map = {
+        f"S{number}": _citation_for(f"S{number}", _match(number, page_number=number if number % 2 else None))
+        for number in range(1, count + 1)
+    }
+    return _validated_answer(answer, citation_map)
 
 
 def _register(client, email):
@@ -69,6 +77,46 @@ def test_citation_mapping_invalid_reference_and_nullable_pages(monkeypatch):
     assert result.citations[0].page_number == 7
     assert result.citations[1].page_number is None
     assert all(citation.source_id != "S99" for citation in result.citations)
+
+
+def test_single_and_grouped_citation_formats():
+    cases = [
+        ("Answer [S1]", ["S1"]),
+        ("Answer [S1, S2]", ["S1", "S2"]),
+        ("Answer [S1,S2]", ["S1", "S2"]),
+        ("Answer [S1,  S2, S3]", ["S1", "S2", "S3"]),
+    ]
+    for answer, expected in cases:
+        result = _validate_citations(answer)
+        assert [citation.source_id for citation in result.citations] == expected
+
+
+def test_grouped_citations_deduplicate_in_first_appearance_order():
+    result = _validate_citations("A [S3, S4]. B [S1, S3]. C [S5].")
+    assert [citation.source_id for citation in result.citations] == ["S3", "S4", "S1", "S5"]
+    assert result.answer == "A [S3, S4]. B [S1, S3]. C [S5]."
+
+    duplicate = _validate_citations("A [S1]. B [S1, S2].")
+    assert [citation.source_id for citation in duplicate.citations] == ["S1", "S2"]
+
+
+def test_grouped_citations_remove_only_untrusted_ids_and_preserve_readability():
+    mixed = _validate_citations("Learning is grounded [S1, S99].")
+    assert mixed.answer == "Learning is grounded [S1]."
+    assert [citation.source_id for citation in mixed.citations] == ["S1"]
+
+    invalid = _validate_citations("Unsupported [S99, S100].")
+    assert invalid.answer == "Unsupported."
+    assert invalid.citations == []
+
+
+def test_grouped_citations_keep_trusted_pdf_and_null_page_metadata():
+    result = _validate_citations("Combined evidence [S1, S2].", count=2)
+    pdf, text = result.citations
+    assert (pdf.lecture_title, pdf.page_number, pdf.chunk_id, pdf.module_id) == (
+        "Lecture 1", 1, "chunk-1", "module-1"
+    )
+    assert text.page_number is None
 
 
 def test_insufficient_context_skips_provider(monkeypatch):
