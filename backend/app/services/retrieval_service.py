@@ -93,6 +93,29 @@ def retrieve_chunks(
     return sorted(ranked, key=lambda result: result.score, reverse=True)[:limit]
 
 
+def retrieve_scoped_chunks(
+    db: Session,
+    *,
+    user_id: str,
+    module_id: str | None = None,
+    lecture_id: str | None = None,
+    limit: int = 20,
+) -> list[RetrievedChunk]:
+    """Return a bounded, deterministic cross-section of an owned study scope."""
+    if limit < 1 or limit > settings.RETRIEVAL_MAX_TOP_K:
+        raise ValueError(f"limit must be between 1 and {settings.RETRIEVAL_MAX_TOP_K}.")
+    rows = (
+        _scoped_query(db, user_id, module_id, lecture_id)
+        .order_by(Lecture.created_at.desc(), Lecture.id, DocumentChunk.chunk_index)
+        .limit(limit)
+        .all()
+    )
+    return [
+        RetrievedChunk(chunk=row[0], lecture_title=row[1], module_id=row[2], score=1.0)
+        for row in rows
+    ]
+
+
 def backfill_missing_embeddings(db: Session, *, batch_size: int = 64) -> int:
     """Explicitly backfill legacy NULL embeddings; never runs at startup."""
     if batch_size < 1:

@@ -70,3 +70,32 @@ def generate_answer(*, system_instruction: str, prompt: str) -> str:
     if provider == "gemini":
         return _generate_with_gemini(system_instruction=system_instruction, prompt=prompt)
     raise LLMConfigurationError("The configured language model provider is unsupported.")
+
+
+def generate_structured_answer(*, system_instruction: str, prompt: str, response_schema) -> str:
+    """Generate provider-validated JSON for a supplied Pydantic response schema."""
+    if settings.LLM_PROVIDER.strip().lower() != "gemini":
+        raise LLMConfigurationError("The configured language model provider is unsupported.")
+    try:
+        from google.genai import types
+
+        response = _get_gemini_client().models.generate_content(
+            model=settings.LLM_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.2,
+                max_output_tokens=4096,
+                response_mime_type="application/json",
+                response_schema=response_schema,
+            ),
+        )
+        output = (response.text or "").strip()
+    except LLMError:
+        raise
+    except Exception as exc:
+        logger.error("Gemini structured generation failed (%s).", type(exc).__name__)
+        raise LLMProviderError("The language model provider could not generate structured output.") from exc
+    if not output:
+        raise LLMProviderError("The language model provider returned an empty response.")
+    return output
