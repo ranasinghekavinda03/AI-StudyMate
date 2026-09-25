@@ -1,8 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import api from '../api/api'
 import { clearStoredSession, establishSession, restoreSession } from './authSession'
-
-const AuthContext = createContext(null)
+import { AuthContext } from './authContextValue'
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null)
@@ -81,13 +80,3 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   )
 }
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
-
-export default AuthContext

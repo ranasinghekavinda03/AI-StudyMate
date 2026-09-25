@@ -9,7 +9,7 @@ import {
   LogOut,
   X
 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/authContextValue'
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth()

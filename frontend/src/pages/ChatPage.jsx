@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, FileText, Info, Send, Sparkles } from 'lucide-react'
 import api from '../api/api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/authContextValue'
 import { moduleLabel } from './lectureDisplay'
 import { canSubmitChat, formatCitationLabel, submitChatQuestion } from './chat'
 

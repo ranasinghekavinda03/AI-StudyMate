@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, BookOpen, HelpCircle, Layers, MessageSquare, Pencil, Plus, Search, Trash2, UploadCloud, X } from 'lucide-react'
 import api from '../api/api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/authContextValue'
 import { buildModulePayload, getModuleFormValues } from './moduleForm'
 import { deleteModuleAndReload } from './moduleDelete'
 

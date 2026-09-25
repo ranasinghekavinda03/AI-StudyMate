@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Menu, Search, Bell, LogOut, User as UserIcon, BookOpen } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { Menu, Search, Bell, LogOut, BookOpen } from 'lucide-react'
+import { useAuth } from '../context/authContextValue'
 
 const pageTitles = {
   '/dashboard': 'Dashboard',

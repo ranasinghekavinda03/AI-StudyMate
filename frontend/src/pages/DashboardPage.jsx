@@ -2,17 +2,15 @@ import { Link } from 'react-router-dom'
 import {
   BookOpen,
   CheckCircle2,
-  Clock,
   TrendingUp,
   UploadCloud,
   MessageSquare,
   HelpCircle,
-  FileText,
   ArrowUpRight,
   Calendar,
   Sparkles
 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/authContextValue'
 
 export default function DashboardPage() {
   const { user } = useAuth()
