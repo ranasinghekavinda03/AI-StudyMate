@@ -138,6 +138,15 @@ const api = {
         token,
       }),
   },
+
+  quiz: {
+    generate: (payload, token) =>
+      request('/quiz/generate', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }),
+  },
 }
 
 export default api

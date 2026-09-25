@@ -79,3 +79,23 @@ test('RAG chat sends an authenticated JSON request through the shared helper', a
     globalThis.fetch = originalFetch
   }
 })
+
+test('quiz generation sends an authenticated JSON request through the shared helper', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ quiz_id: 'quiz-1', difficulty: 'hard', questions: [] }) }
+  }
+  const payload = { module_id: 'module-1', lecture_id: 'lecture-1', difficulty: 'hard', question_count: 10 }
+  try {
+    await api.quiz.generate(payload, 'access-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/quiz/generate')
+    assert.equal(captured.config.method, 'POST')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+    assert.equal(captured.config.headers['Content-Type'], 'application/json')
+    assert.deepEqual(JSON.parse(captured.config.body), payload)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

@@ -1,343 +1,371 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  HelpCircle,
-  CheckCircle2,
-  XCircle,
-  Sparkles,
-  ArrowRight,
   ArrowLeft,
-  RotateCcw,
-  BookOpen,
+  ArrowRight,
   Award,
-  Clock
+  BookOpen,
+  CheckCircle2,
+  RotateCcw,
+  Sparkles,
+  XCircle,
 } from 'lucide-react'
+import api from '../api/api'
+import { useAuth } from '../context/AuthContext'
+import { moduleLabel } from './lectureDisplay'
+import {
+  QUIZ_DIFFICULTIES,
+  QUIZ_QUESTION_COUNTS,
+  buildQuizPayload,
+  calculateQuizScore,
+  changeQuizModule,
+  createQuizGenerationController,
+  formatQuizSource,
+  isAnswerCorrect,
+  quizErrorMessage,
+  resetQuizState,
+  selectSingleAnswer,
+} from './quiz'
 
-const MOCK_QUESTIONS = {
-  easy: [
-    {
-      id: 'q1',
-      question: 'What does the abbreviation "RAG" stand for in modern AI systems?',
-      options: [
-        'Recursive Auto-regressive Generation',
-        'Retrieval-Augmented Generation',
-        'Randomized Attribute Gradient',
-        'Residual Attention Gate',
-      ],
-      correctIndex: 1,
-      explanation: 'RAG stands for Retrieval-Augmented Generation, combining pre-trained parametric memory with external document vector retrieval.',
-      citation: 'System Architecture — Section 1',
-    },
-    {
-      id: 'q2',
-      question: 'Which distance metric is most commonly used in pgvector similarity search?',
-      options: [
-        'Manhattan Distance',
-        'Hamming Distance',
-        'Cosine Distance',
-        'Chebyshev Distance',
-      ],
-      correctIndex: 2,
-      explanation: 'Cosine similarity/distance is standard for high-dimensional semantic text embeddings.',
-      citation: 'The RAG Pipeline — Section 6',
-    },
-    {
-      id: 'q3',
-      question: 'In AI StudyMate, what is the primary role of document chunking?',
-      options: [
-        'Compressing file sizes for disk storage',
-        'Splitting long text into manageable token windows with overlap for embeddings',
-        'Translating PDF fonts into HTML',
-        'Encrypting student notes for GDPR compliance',
-      ],
-      correctIndex: 1,
-      explanation: 'Chunking divides text into ~500-800 token segments with overlap so context is not truncated mid-sentence.',
-      citation: 'The RAG Pipeline — Section 6',
-    },
-  ],
-  medium: [
-    {
-      id: 'q1',
-      question: 'In A* search, what is the key condition required for tree search to guarantee finding the optimal path?',
-      options: [
-        'The heuristic must be consistent (monotonic)',
-        'The heuristic must be admissible (never overestimates)',
-        'The branching factor must be finite and constant',
-        'All edge weights must be strictly equal to 1',
-      ],
-      correctIndex: 1,
-      explanation: 'For tree search, admissibility alone guarantees optimality. For graph search, consistency is required to avoid reopening nodes.',
-      citation: 'Lec04_Heuristic_Search_A_Star.pdf — Page 14',
-    },
-    {
-      id: 'q2',
-      question: 'Why is overlap included when chunking documents in a RAG ingestion pipeline?',
-      options: [
-        'To double the database storage requirements',
-        'To prevent semantically connected concepts from being severed across boundary splits',
-        'To avoid duplicate primary keys in PostgreSQL',
-        'To accelerate the GPU matrix multiplication speed',
-      ],
-      correctIndex: 1,
-      explanation: '50-100 token overlap ensures boundary sentences preserve complete semantic context in both adjacent vector chunks.',
-      citation: 'RAG Pipeline Step-by-step — Page 3',
-    },
-    {
-      id: 'q3',
-      question: 'What is the primary function of Early Stopping in neural network training?',
-      options: [
-        'To prevent vanishing gradient by reducing learning rate',
-        'To halt training once validation loss starts increasing, avoiding overfitting',
-        'To restart weights initialization with Xavier distribution',
-        'To prune dead ReLU neurons',
-      ],
-      correctIndex: 1,
-      explanation: 'Early stopping acts as a regularization technique by monitoring validation performance and stopping when generalization plateaus.',
-      citation: 'Lec03_Deep_Neural_Networks.docx — Page 18',
-    },
-  ],
-  hard: [
-    {
-      id: 'q1',
-      question: 'If a heuristic $h(n)$ satisfies the triangle inequality $h(n) \\le c(n, a, n\') + h(n\')$, which statement is mathematically TRUE?',
-      options: [
-        'The heuristic may be inadmissible if negative costs exist',
-        'The heuristic is guaranteed to be both consistent and admissible',
-        'The heuristic guarantees greedy best-first search will find the global optimum',
-        'The heuristic requires exponential space complexity',
-      ],
-      correctIndex: 1,
-      explanation: 'Consistency implies admissibility via induction over path cost (assuming non-negative step costs).',
-      citation: 'Lec04_Heuristic_Search_A_Star.pdf — Page 16',
-    },
-    {
-      id: 'q2',
-      question: 'In Bayesian Inference, which term in Bayes Theorem acts as the normalizing constant?',
-      options: [
-        'The Prior probability $P(\\theta)$',
-        'The Likelihood $P(D | \\theta)$',
-        'The Marginal Evidence $P(D) = \\int P(D | \\theta) P(\\theta) d\\theta$',
-        'The Posterior distribution $P(\\theta | D)$',
-      ],
-      correctIndex: 2,
-      explanation: 'The denominator is the marginal probability of data $P(D)$, ensuring the posterior integrates to 1.',
-      citation: 'Lec02_Bayesian_Inference.pdf — Page 9',
-    },
-  ],
+const DIFFICULTY_DETAILS = {
+  easy: 'Recall & Definitions',
+  medium: 'Conceptual & Applied',
+  hard: 'Advanced Reasoning',
+}
+
+function DifficultyBadge({ difficulty }) {
+  const badgeClass = difficulty === 'easy'
+    ? 'badge-accent'
+    : difficulty === 'medium' ? 'badge-warning' : 'badge-danger'
+  return <span className={`badge ${badgeClass}`}>{difficulty}</span>
+}
+
+function SourceList({ sources, label = 'Question sources' }) {
+  if (!sources.length) return null
+  return (
+    <div className="quiz-sources" aria-label={label}>
+      {sources.map((source) => (
+        <div className="quiz-source-card" key={`${source.source_id}-${source.chunk_id}`}>
+          <BookOpen size={14} />
+          <span>{formatQuizSource(source)}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function QuizPage() {
-  const [phase, setPhase] = useState('setup') // 'setup' | 'taking' | 'results'
-  const [selectedModule, setSelectedModule] = useState('CS 401: Artificial Intelligence')
-  const [difficulty, setDifficulty] = useState('medium') // 'easy' | 'medium' | 'hard'
-  const [questionCount, setQuestionCount] = useState(3)
-
+  const { token } = useAuth()
+  const [phase, setPhase] = useState('setup')
+  const [modules, setModules] = useState([])
+  const [lectures, setLectures] = useState([])
+  const [selectedModuleId, setSelectedModuleId] = useState('')
+  const [selectedLectureId, setSelectedLectureId] = useState('')
+  const [difficulty, setDifficulty] = useState('medium')
+  const [questionCount, setQuestionCount] = useState(5)
+  const [scopeLoading, setScopeLoading] = useState(true)
+  const [scopeError, setScopeError] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState('')
   const [questions, setQuestions] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [selectedAnswers, setSelectedAnswers] = useState({}) // { [qIndex]: optionIndex }
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [selectedAnswers, setSelectedAnswers] = useState({})
+  const [checkedAnswers, setCheckedAnswers] = useState({})
+  const generationActiveRef = useRef(false)
+  const [generationController] = useState(createQuizGenerationController)
 
-  const startQuiz = () => {
-    const pool = MOCK_QUESTIONS[difficulty] || MOCK_QUESTIONS.medium
-    setQuestions(pool.slice(0, questionCount))
-    setCurrentIndex(0)
-    setSelectedAnswers({})
-    setIsSubmitted(false)
-    setPhase('taking')
-  }
-
-  const handleSelectOption = (optionIndex) => {
-    if (isSubmitted) return
-    setSelectedAnswers({
-      ...selectedAnswers,
-      [currentIndex]: optionIndex,
-    })
-  }
-
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1)
-    } else {
-      finishQuiz()
-    }
-  }
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1)
-    }
-  }
-
-  const finishQuiz = () => {
-    setIsSubmitted(true)
-    setPhase('results')
-  }
-
-  const calculateScore = () => {
-    let correct = 0
-    questions.forEach((q, idx) => {
-      if (selectedAnswers[idx] === q.correctIndex) {
-        correct++
+  useEffect(() => {
+    let active = true
+    async function loadModules() {
+      try {
+        const data = await api.modules.list(token)
+        if (!Array.isArray(data)) throw new Error('The server returned an invalid module list.')
+        if (active) setModules(data)
+      } catch (error) {
+        if (active) setScopeError(error.message || 'Unable to load modules.')
       }
-    })
-    return {
-      correct,
-      total: questions.length,
-      percentage: Math.round((correct / questions.length) * 100),
+    }
+    loadModules()
+    return () => { active = false }
+  }, [token])
+
+  useEffect(() => {
+    let active = true
+    async function loadLectures() {
+      setScopeLoading(true)
+      try {
+        const data = await api.lectures.list(selectedModuleId || null, token)
+        if (!Array.isArray(data)) throw new Error('The server returned an invalid lecture list.')
+        if (active) setLectures(data)
+      } catch (error) {
+        if (active) {
+          setLectures([])
+          setScopeError(error.message || 'Unable to load lectures.')
+        }
+      } finally {
+        if (active) setScopeLoading(false)
+      }
+    }
+    loadLectures()
+    return () => { active = false }
+  }, [selectedModuleId, token])
+
+  const currentQuestion = questions[currentIndex]
+  const currentSelection = selectedAnswers[currentIndex]
+  const currentChecked = Boolean(checkedAnswers[currentIndex])
+  const score = useMemo(
+    () => calculateQuizScore(questions, selectedAnswers),
+    [questions, selectedAnswers],
+  )
+  const progressPercent = questions.length ? ((currentIndex + 1) / questions.length) * 100 : 0
+
+  function handleModuleChange(moduleId) {
+    const nextSelection = changeQuizModule(moduleId)
+    setSelectedModuleId(nextSelection.selectedModuleId)
+    setSelectedLectureId(nextSelection.selectedLectureId)
+    setLectures([])
+    setScopeError('')
+  }
+
+  async function handleGenerate() {
+    if (generationActiveRef.current) return
+    let payload
+    try {
+      payload = buildQuizPayload({
+        moduleId: selectedModuleId,
+        lectureId: selectedLectureId,
+        difficulty,
+        questionCount,
+      })
+    } catch (error) {
+      setGenerationError(error.message)
+      return
+    }
+
+    generationActiveRef.current = true
+    setGenerating(true)
+    setGenerationError('')
+    try {
+      const result = await generationController.generate({
+        payload,
+        token,
+        request: api.quiz.generate,
+      })
+      if (!result.started) return
+      const response = result.response
+      setQuestions(response.questions)
+      setCurrentIndex(0)
+      setSelectedAnswers({})
+      setCheckedAnswers({})
+      setPhase('taking')
+    } catch (error) {
+      setGenerationError(quizErrorMessage(error))
+    } finally {
+      generationActiveRef.current = false
+      setGenerating(false)
     }
   }
 
-  const currentQ = questions[currentIndex]
-  const progressPercent = questions.length
-    ? ((currentIndex + 1) / questions.length) * 100
-    : 0
+  function handleSelectOption(optionIndex) {
+    if (currentChecked) return
+    setSelectedAnswers((answers) => selectSingleAnswer(answers, currentIndex, optionIndex))
+  }
 
-  const getDifficultyBadge = (diff) => {
-    if (diff === 'easy') return <span className="badge badge-accent">Easy</span>
-    if (diff === 'medium') return <span className="badge badge-warning">Medium</span>
-    return <span className="badge badge-danger">Hard</span>
+  function checkAnswer() {
+    if (currentSelection === undefined) return
+    setCheckedAnswers((answers) => ({ ...answers, [currentIndex]: true }))
+  }
+
+  function handleNext() {
+    if (!currentChecked) return
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex((index) => index + 1)
+    } else {
+      setPhase('results')
+    }
+  }
+
+  function resetQuiz() {
+    const reset = resetQuizState()
+    setQuestions(reset.questions)
+    setSelectedAnswers(reset.selectedAnswers)
+    setCheckedAnswers(reset.checkedAnswers)
+    setCurrentIndex(reset.currentIndex)
+    setGenerationError('')
+    setPhase('setup')
   }
 
   return (
     <div className="stagger-children">
-      {/* ---------- SETUP PHASE ---------- */}
       {phase === 'setup' && (
         <div className="quiz-setup">
-          <div className="page-header" style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
+          <div className="page-header quiz-page-header">
             <h1>Interactive Quiz Generator</h1>
-            <p>Generate targeted multiple-choice quizzes grounded directly in your uploaded notes.</p>
+            <p>Generate multiple-choice quizzes grounded directly in your uploaded notes.</p>
           </div>
 
           <div className="quiz-setup-card">
-            <div className="input-group" style={{ marginBottom: 'var(--space-5)' }}>
-              <label htmlFor="quizModule">Select Source Module / Lecture</label>
-              <select
-                id="quizModule"
-                className="input"
-                value={selectedModule}
-                onChange={(e) => setSelectedModule(e.target.value)}
-              >
-                <option value="CS 401: Artificial Intelligence">CS 401: Artificial Intelligence (Lec 01 & 04)</option>
-                <option value="CS 480: Machine Learning">CS 480: Machine Learning (Lec 03)</option>
-                <option value="STAT 350: Applied Probability">STAT 350: Applied Probability (Lec 02)</option>
-              </select>
-            </div>
+            {scopeError && <div className="auth-error quiz-alert" role="alert">{scopeError}</div>}
+            {generationError && <div className="auth-error quiz-alert" role="alert">{generationError}</div>}
 
-            <div className="input-group" style={{ marginBottom: 'var(--space-5)' }}>
-              <label>Select Difficulty Tier</label>
-              <div className="quiz-option-grid">
-                <div
-                  className={`quiz-option easy ${difficulty === 'easy' ? 'selected' : ''}`}
-                  onClick={() => setDifficulty('easy')}
+            <div className="quiz-scope-grid">
+              <div className="input-group">
+                <label htmlFor="quiz-module">Module</label>
+                <select
+                  id="quiz-module"
+                  className="input"
+                  value={selectedModuleId}
+                  onChange={(event) => handleModuleChange(event.target.value)}
+                  disabled={generating}
                 >
-                  🟢 Easy
-                  <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.8 }}>Recall & Definitions</div>
-                </div>
-                <div
-                  className={`quiz-option medium ${difficulty === 'medium' ? 'selected' : ''}`}
-                  onClick={() => setDifficulty('medium')}
+                  <option value="">All modules</option>
+                  {modules.map((module) => (
+                    <option key={module.id} value={module.id}>{moduleLabel(module)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="quiz-lecture">Lecture</label>
+                <select
+                  id="quiz-lecture"
+                  className="input"
+                  value={selectedLectureId}
+                  onChange={(event) => setSelectedLectureId(event.target.value)}
+                  disabled={generating || scopeLoading}
                 >
-                  🟡 Medium
-                  <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.8 }}>Conceptual & Applied</div>
-                </div>
-                <div
-                  className={`quiz-option hard ${difficulty === 'hard' ? 'selected' : ''}`}
-                  onClick={() => setDifficulty('hard')}
-                >
-                  🔴 Hard
-                  <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.8 }}>Mathematical & Proofs</div>
-                </div>
+                  <option value="">All lectures</option>
+                  {lectures.map((lecture) => (
+                    <option key={lecture.id} value={lecture.id}>{lecture.title}</option>
+                  ))}
+                </select>
+                {scopeLoading && <span className="quiz-field-note" role="status">Loading lectures...</span>}
               </div>
             </div>
 
-            <div className="input-group" style={{ marginBottom: 'var(--space-8)' }}>
-              <label>Number of Questions: {questionCount}</label>
-              <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-                {[3, 5, 10].map((count) => (
+            <fieldset className="quiz-fieldset" disabled={generating}>
+              <legend>Difficulty</legend>
+              <div className="quiz-option-grid">
+                {QUIZ_DIFFICULTIES.map((value) => (
                   <button
-                    key={count}
+                    key={value}
                     type="button"
-                    className={`btn ${questionCount === count ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                    style={{ flex: 1 }}
-                    onClick={() => setQuestionCount(count)}
+                    className={`quiz-option ${value} ${difficulty === value ? 'selected' : ''}`}
+                    onClick={() => setDifficulty(value)}
+                    aria-pressed={difficulty === value}
                   >
-                    {count} Questions
+                    <span className="quiz-option-title">{value}</span>
+                    <span>{DIFFICULTY_DETAILS[value]}</span>
                   </button>
                 ))}
               </div>
+            </fieldset>
+
+            <div className="input-group quiz-count-field">
+              <label htmlFor="quiz-question-count">Number of questions</label>
+              <select
+                id="quiz-question-count"
+                className="input"
+                value={questionCount}
+                onChange={(event) => setQuestionCount(Number(event.target.value))}
+                disabled={generating}
+              >
+                {QUIZ_QUESTION_COUNTS.map((count) => (
+                  <option key={count} value={count}>{count} questions</option>
+                ))}
+              </select>
             </div>
+
+            {generating && (
+              <div className="quiz-generating" role="status">
+                <Sparkles size={18} className="animate-spin" />
+                Generating questions from your study materials...
+              </div>
+            )}
 
             <button
               type="button"
-              className="btn btn-primary btn-lg"
-              style={{ width: '100%' }}
-              onClick={startQuiz}
+              className="btn btn-primary btn-lg quiz-generate-button"
+              onClick={handleGenerate}
+              disabled={generating || scopeLoading}
             >
               <Sparkles size={18} />
-              Generate AI Quiz
+              {generating ? 'Generating Quiz...' : 'Generate Quiz'}
             </button>
           </div>
         </div>
       )}
 
-      {/* ---------- TAKING PHASE ---------- */}
-      {phase === 'taking' && currentQ && (
+      {phase === 'taking' && currentQuestion && (
         <div className="quiz-container">
-          {/* Top Teal Progress Bar */}
-          <div className="quiz-progress-bar">
-            <div
-              className="quiz-progress-fill"
-              style={{ width: `${progressPercent}%` }}
-            />
+          <div className="quiz-progress-bar" aria-hidden="true">
+            <div className="quiz-progress-fill" style={{ width: `${progressPercent}%` }} />
           </div>
 
-          <div className="card">
-            {/* Header: Question counter & difficulty badge */}
+          <div className="card quiz-question-card">
             <div className="quiz-question-header">
-              <span className="quiz-question-number">
-                Question {currentIndex + 1} of {questions.length}
-              </span>
-              {getDifficultyBadge(difficulty)}
+              <span className="quiz-question-number">Question {currentIndex + 1} of {questions.length}</span>
+              <DifficultyBadge difficulty={difficulty} />
             </div>
 
-            {/* Question Text */}
-            <h2 className="quiz-question-text">{currentQ.question}</h2>
-
-            {/* Answer Options */}
-            <div className="quiz-answers">
-              {currentQ.options.map((opt, optIdx) => {
-                const letter = String.fromCharCode(65 + optIdx)
-                const isSelected = selectedAnswers[currentIndex] === optIdx
+            <h2 className="quiz-question-text">{currentQuestion.question_text}</h2>
+            <div className="quiz-answers" role="radiogroup" aria-label={`Answers for question ${currentIndex + 1}`}>
+              {currentQuestion.options.map((option, optionIndex) => {
+                const selected = currentSelection === optionIndex
+                const correct = currentChecked && currentQuestion.correct_answers[0] === optionIndex
+                const incorrect = currentChecked && selected && !correct
+                const classes = ['quiz-answer', selected ? 'selected' : '', correct ? 'correct' : '', incorrect ? 'incorrect' : ''].filter(Boolean).join(' ')
                 return (
-                  <div
-                    key={optIdx}
-                    className={`quiz-answer ${isSelected ? 'selected' : ''}`}
-                    onClick={() => handleSelectOption(optIdx)}
+                  <button
+                    key={optionIndex}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={classes}
+                    onClick={() => handleSelectOption(optionIndex)}
+                    disabled={currentChecked}
                   >
-                    <div className="quiz-answer-letter">{letter}</div>
-                    <div style={{ flex: 1 }}>{opt}</div>
-                  </div>
+                    <span className="quiz-answer-letter">{String.fromCharCode(65 + optionIndex)}</span>
+                    <span>{option}</span>
+                  </button>
                 )
               })}
             </div>
 
-            {/* Actions */}
+            {!currentChecked ? (
+              <button
+                type="button"
+                className="btn btn-primary quiz-check-button"
+                onClick={checkAnswer}
+                disabled={currentSelection === undefined}
+              >
+                Check Answer
+              </button>
+            ) : (
+              <div className={`quiz-feedback ${isAnswerCorrect(currentQuestion, currentSelection) ? 'correct' : 'incorrect'}`} role="status">
+                <div className="quiz-feedback-title">
+                  {isAnswerCorrect(currentQuestion, currentSelection)
+                    ? <><CheckCircle2 size={20} /> Correct</>
+                    : <><XCircle size={20} /> Incorrect</>}
+                </div>
+                {!isAnswerCorrect(currentQuestion, currentSelection) && (
+                  <p>Correct answer: <strong>{currentQuestion.options[currentQuestion.correct_answers[0]]}</strong></p>
+                )}
+                <p><strong>Explanation:</strong> {currentQuestion.explanation}</p>
+                <SourceList sources={currentQuestion.sources} />
+              </div>
+            )}
+
             <div className="quiz-actions">
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={handlePrev}
+                onClick={() => setCurrentIndex((index) => index - 1)}
                 disabled={currentIndex === 0}
               >
                 <ArrowLeft size={16} /> Previous
               </button>
-
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleNext}
-                disabled={selectedAnswers[currentIndex] === undefined}
-              >
-                {currentIndex === questions.length - 1 ? 'Submit Quiz' : 'Next Question'}
+              <button type="button" className="btn btn-primary" onClick={handleNext} disabled={!currentChecked}>
+                {currentIndex === questions.length - 1 ? 'Finish' : 'Next'}
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -345,91 +373,48 @@ export default function QuizPage() {
         </div>
       )}
 
-      {/* ---------- RESULTS PHASE ---------- */}
       {phase === 'results' && (
         <div className="quiz-results">
-          <div className="card" style={{ padding: 'var(--space-8)' }}>
-            <Award size={48} style={{ color: 'var(--accent)', margin: '0 auto' }} />
-            <div className="quiz-results-score">
-              {calculateScore().percentage}%
-            </div>
-            <div className="quiz-results-label">
-              You answered {calculateScore().correct} out of {calculateScore().total} questions correctly
-            </div>
+          <div className="card quiz-results-card">
+            <Award size={48} className="quiz-award" />
+            <h1>Quiz Complete</h1>
+            <div className="quiz-results-score">{score.correct} / {score.total}</div>
+            <div className="quiz-results-label">Accuracy: {score.percentage}%</div>
 
             <div className="quiz-results-breakdown">
               <div className="quiz-results-stat">
-                <div className="quiz-results-stat-value" style={{ color: 'var(--success)' }}>
-                  {calculateScore().correct}
-                </div>
+                <div className="quiz-results-stat-value quiz-correct-text">{score.correct}</div>
                 <div className="quiz-results-stat-label">Correct</div>
               </div>
               <div className="quiz-results-stat">
-                <div className="quiz-results-stat-value" style={{ color: 'var(--danger)' }}>
-                  {calculateScore().total - calculateScore().correct}
-                </div>
+                <div className="quiz-results-stat-value quiz-incorrect-text">{score.incorrect}</div>
                 <div className="quiz-results-stat-label">Incorrect</div>
               </div>
-              <div className="quiz-results-stat">
-                <div className="quiz-results-stat-value" style={{ color: 'var(--primary)' }}>
-                  {difficulty.toUpperCase()}
-                </div>
-                <div className="quiz-results-stat-label">Difficulty</div>
-              </div>
             </div>
 
-            {/* Explanations with Citations */}
-            <div style={{ textAlign: 'left', marginTop: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
-              <h3 style={{ fontSize: 'var(--text-lg)', marginBottom: 'var(--space-4)' }}>Review & Explanations</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                {questions.map((q, idx) => {
-                  const userAnswer = selectedAnswers[idx]
-                  const isCorrect = userAnswer === q.correctIndex
-                  return (
-                    <div
-                      key={q.id}
-                      style={{
-                        padding: 'var(--space-4)',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--bg)',
-                        borderLeft: `4px solid ${isCorrect ? 'var(--success)' : 'var(--danger)'}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-                        {isCorrect ? (
-                          <CheckCircle2 size={18} style={{ color: 'var(--success)' }} />
-                        ) : (
-                          <XCircle size={18} style={{ color: 'var(--danger)' }} />
-                        )}
-                        <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>
-                          {idx + 1}. {q.question}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
-                        Your answer: <strong>{q.options[userAnswer] ?? 'None'}</strong> | Correct: <strong>{q.options[q.correctIndex]}</strong>
-                      </div>
-                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                        {q.explanation}
-                      </p>
-                      <div className="chat-citation" style={{ marginTop: 'var(--space-2)' }}>
-                        <BookOpen size={12} style={{ color: 'var(--accent)' }} />
-                        <span>Source: <strong>{q.citation}</strong></span>
-                      </div>
+            <section className="quiz-review" aria-label="Quiz review">
+              <h2>Review Questions</h2>
+              {questions.map((question, index) => {
+                const selectedIndex = selectedAnswers[index]
+                const correct = isAnswerCorrect(question, selectedIndex)
+                return (
+                  <article className={`quiz-review-item ${correct ? 'correct' : 'incorrect'}`} key={question.id}>
+                    <div className="quiz-review-heading">
+                      {correct ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+                      <strong>{index + 1}. {question.question_text}</strong>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
+                    <p>Your answer: <strong>{question.options[selectedIndex]}</strong></p>
+                    <p>Correct answer: <strong>{question.options[question.correct_answers[0]]}</strong></p>
+                    <p><strong>Explanation:</strong> {question.explanation}</p>
+                    <SourceList sources={question.sources} label={`Sources for question ${index + 1}`} />
+                  </article>
+                )
+              })}
+            </section>
 
-            <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setPhase('setup')}
-              >
-                <RotateCcw size={16} /> Try Another Quiz
-              </button>
-            </div>
+            <button type="button" className="btn btn-primary" onClick={resetQuiz}>
+              <RotateCcw size={16} /> Generate Another Quiz
+            </button>
           </div>
         </div>
       )}
