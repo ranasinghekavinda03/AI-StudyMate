@@ -16,7 +16,7 @@ from app.schemas.lecture import LectureCreate, LectureResponse, LectureUploadRes
 from app.services.document_extractor import DocumentExtractionError, extract_document
 from app.services.document_ingestion import chunk_document
 from app.services.embedding_service import EmbeddingError, embed_texts
-from app.services.upload_storage import remove_upload_file, resolve_upload_path
+from app.services.upload_storage import collect_unshared_upload_paths, remove_upload_file
 
 router = APIRouter(prefix="/lectures", tags=["lectures"])
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024
@@ -233,21 +233,16 @@ def delete_lecture(
             detail="Lecture not found."
         )
 
-    stored_path = resolve_upload_path(lecture.file_url)
-    shared_upload = False
-    if stored_path is not None:
-        other_file_urls = (
-            db.query(Lecture.file_url)
-            .filter(Lecture.id != lecture.id, Lecture.file_url.isnot(None))
-            .all()
-        )
-        shared_upload = any(
-            resolve_upload_path(file_url) == stored_path
-            for (file_url,) in other_file_urls
-        )
+    other_file_urls = (
+        file_url
+        for (file_url,) in db.query(Lecture.file_url)
+        .filter(Lecture.id != lecture.id, Lecture.file_url.isnot(None))
+        .all()
+    )
+    cleanup_paths = collect_unshared_upload_paths([lecture.file_url], other_file_urls)
 
     db.delete(lecture)
     db.commit()
-    if stored_path is not None and not shared_upload:
-        remove_upload_file(stored_path)
+    for path in cleanup_paths:
+        remove_upload_file(path)
     return None

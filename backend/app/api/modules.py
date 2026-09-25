@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.module import Module
 from app.models.lecture import Lecture
 from app.schemas.module import ModuleCreate, ModuleUpdate, ModuleResponse
+from app.services.upload_storage import collect_unshared_upload_paths, remove_upload_file
 
 router = APIRouter(prefix="/modules", tags=["modules"])
 
@@ -109,6 +110,22 @@ def delete_module(
             detail="Module not found."
         )
 
+    module_file_urls = (
+        file_url
+        for (file_url,) in db.query(Lecture.file_url)
+        .filter(Lecture.module_id == module.id, Lecture.file_url.isnot(None))
+        .all()
+    )
+    surviving_file_urls = (
+        file_url
+        for (file_url,) in db.query(Lecture.file_url)
+        .filter(Lecture.module_id != module.id, Lecture.file_url.isnot(None))
+        .all()
+    )
+    cleanup_paths = collect_unshared_upload_paths(module_file_urls, surviving_file_urls)
+
     db.delete(module)
     db.commit()
+    for path in cleanup_paths:
+        remove_upload_file(path)
     return None

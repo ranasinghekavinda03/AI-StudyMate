@@ -1,5 +1,6 @@
 """Safe path handling for locally stored lecture uploads."""
 
+from collections.abc import Iterable
 import logging
 from pathlib import Path
 
@@ -35,6 +36,24 @@ def resolve_upload_path(stored_path: str | None) -> Path | None:
         logger.warning("Refused lecture-file cleanup for the upload directory itself.")
         return None
     return candidate
+
+
+def collect_unshared_upload_paths(
+    stored_paths: Iterable[str | None],
+    surviving_stored_paths: Iterable[str | None],
+) -> set[Path]:
+    """Return unique, safe upload paths not referenced by surviving lectures."""
+    candidates = {
+        resolved
+        for stored_path in set(stored_paths)
+        if (resolved := resolve_upload_path(stored_path)) is not None
+    }
+    surviving = {
+        resolved
+        for stored_path in set(surviving_stored_paths)
+        if (resolved := resolve_upload_path(stored_path)) is not None
+    }
+    return candidates - surviving
 
 
 def remove_upload_file(path: Path) -> bool:
