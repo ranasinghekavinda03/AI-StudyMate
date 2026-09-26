@@ -156,6 +156,15 @@ const api = {
         token,
       }),
   },
+
+  flashcards: {
+    generate: (payload, token) =>
+      request('/flashcards/generate', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }),
+  },
 }
 
 export default api

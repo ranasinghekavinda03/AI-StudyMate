@@ -6,6 +6,7 @@ import {
   MessageSquare,
   HelpCircle,
   NotebookText,
+  Layers3,
   GraduationCap,
   LogOut,
   X
@@ -23,6 +24,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { to: '/chat', label: 'AI Chat', icon: MessageSquare },
     { to: '/quiz', label: 'Quiz', icon: HelpCircle },
     { to: '/summaries', label: 'Summaries', icon: NotebookText },
+    { to: '/flashcards', label: 'Flashcards', icon: Layers3 },
   ]
 
   const handleLogout = () => {

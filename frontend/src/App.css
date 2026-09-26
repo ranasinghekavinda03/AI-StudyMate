@@ -98,6 +98,61 @@
   .summary-scope-grid, .summary-type-grid, .summary-terms { grid-template-columns: 1fr; }
 }
 
+/* ---------- Flashcards Layout ---------- */
+.flashcards-page { max-width: 820px; margin: 0 auto; }
+.flashcards-page-header { text-align: center; margin-bottom: var(--space-6); }
+.flashcards-controls,
+.flashcards-review {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+}
+.flashcards-alert { margin-bottom: var(--space-4); }
+.flashcards-scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-5); }
+.flashcards-field-note { display: block; color: var(--text-muted); font-size: var(--text-xs); margin-top: var(--space-2); }
+.flashcards-fieldset { border: 0; padding: 0; margin: 0 0 var(--space-5); }
+.flashcards-fieldset legend { font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--space-2); }
+.flashcards-difficulty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.flashcards-difficulty {
+  padding: var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.flashcards-difficulty:hover { border-color: var(--primary-border); }
+.flashcards-difficulty.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.flashcards-difficulty:disabled { cursor: not-allowed; opacity: 0.7; }
+.flashcards-difficulty span { display: block; font-weight: 700; text-transform: capitalize; margin-bottom: var(--space-1); }
+.flashcards-difficulty small { display: block; color: var(--text-secondary); line-height: 1.4; }
+.flashcards-count-field { margin-bottom: var(--space-5); }
+.flashcards-generate-button { width: 100%; }
+.flashcards-generating { display: flex; justify-content: center; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); margin-bottom: var(--space-4); }
+.flashcards-review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; }
+.flashcard-card { min-height: 360px; display: flex; flex-direction: column; justify-content: center; padding: var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--bg); box-shadow: var(--shadow-sm); }
+.flashcard-card h2 { font-size: var(--text-2xl); line-height: 1.45; margin: var(--space-3) 0 var(--space-8); }
+.flashcard-side-label { color: var(--accent); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.flashcard-reveal-button { align-self: flex-start; }
+.flashcard-answer { padding-top: var(--space-5); border-top: 1px solid var(--border); }
+.flashcard-answer p { color: var(--text-secondary); font-size: var(--text-lg); line-height: 1.7; margin: var(--space-2) 0 var(--space-4); white-space: pre-wrap; }
+.flashcard-sources { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.flashcard-source { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--accent-border); border-radius: var(--radius-md); color: var(--text-secondary); font-size: var(--text-xs); background: var(--surface); }
+.flashcards-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-5); }
+.flashcards-complete { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-5); padding: var(--space-4); border: 1px solid var(--accent-border); border-radius: var(--radius-lg); background: var(--accent-light); color: var(--accent); }
+.flashcards-complete h3 { font-size: var(--text-base); margin-bottom: 2px; }
+.flashcards-complete p { font-size: var(--text-sm); color: var(--text-secondary); }
+.flashcards-reset-button { display: flex; margin: var(--space-5) auto 0; }
+
+@media (max-width: 640px) {
+  .flashcards-controls, .flashcards-review, .flashcard-card { padding: var(--space-5); }
+  .flashcards-scope-grid, .flashcards-difficulty-grid { grid-template-columns: 1fr; }
+  .flashcard-card { min-height: 320px; }
+}
+
 /* ---------- Auth Layout ---------- */
 .auth-layout {
   min-height: 100vh;

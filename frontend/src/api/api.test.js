@@ -119,3 +119,23 @@ test('summary generation posts its payload with authentication through the share
     globalThis.fetch = originalFetch
   }
 })
+
+test('flashcard generation posts its payload with authentication through the shared helper', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ flashcard_set_id: 'set-1', difficulty: 'medium', flashcards: [] }) }
+  }
+  const payload = { module_id: null, lecture_id: null, flashcard_count: 10, difficulty: 'medium' }
+  try {
+    await api.flashcards.generate(payload, 'access-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/flashcards/generate')
+    assert.equal(captured.config.method, 'POST')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+    assert.equal(captured.config.headers['Content-Type'], 'application/json')
+    assert.deepEqual(JSON.parse(captured.config.body), payload)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

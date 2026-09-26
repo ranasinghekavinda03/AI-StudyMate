@@ -12,6 +12,7 @@ import LecturePage from './pages/LecturePage'
 import ChatPage from './pages/ChatPage'
 import QuizPage from './pages/QuizPage'
 import SummaryPage from './pages/SummaryPage'
+import FlashcardsPage from './pages/FlashcardsPage'
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -50,6 +51,7 @@ function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/quiz" element={<QuizPage />} />
         <Route path="/summaries" element={<SummaryPage />} />
+        <Route path="/flashcards" element={<FlashcardsPage />} />
       </Route>
 
       {/* Redirects */}
