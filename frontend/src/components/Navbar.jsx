@@ -9,6 +9,7 @@ const pageTitles = {
   '/lectures': 'Lecture Upload & Library',
   '/chat': 'AI Study Chat',
   '/quiz': 'Interactive Quiz Generator',
+  '/summaries': 'Study Summaries',
 }
 
 export default function Navbar({ onToggleSidebar }) {

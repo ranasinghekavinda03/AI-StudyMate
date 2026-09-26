@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "test": "node --test src/context/authSession.test.js src/api/api.test.js src/pages/moduleForm.test.js src/pages/moduleDelete.test.js src/pages/lectureDisplay.test.js src/pages/lectureUpload.test.js src/pages/lectureDelete.test.js src/pages/chat.test.js src/pages/quiz.test.js",
+    "test": "node --test src/context/authSession.test.js src/api/api.test.js src/pages/moduleForm.test.js src/pages/moduleDelete.test.js src/pages/lectureDisplay.test.js src/pages/lectureUpload.test.js src/pages/lectureDelete.test.js src/pages/chat.test.js src/pages/quiz.test.js src/pages/summary.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

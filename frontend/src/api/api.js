@@ -147,6 +147,15 @@ const api = {
         token,
       }),
   },
+
+  summaries: {
+    generate: (payload, token) =>
+      request('/summaries/generate', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }),
+  },
 }
 
 export default api

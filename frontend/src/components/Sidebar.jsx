@@ -5,6 +5,7 @@ import {
   UploadCloud,
   MessageSquare,
   HelpCircle,
+  NotebookText,
   GraduationCap,
   LogOut,
   X
@@ -21,6 +22,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { to: '/lectures', label: 'Lecture Upload', icon: UploadCloud },
     { to: '/chat', label: 'AI Chat', icon: MessageSquare },
     { to: '/quiz', label: 'Quiz', icon: HelpCircle },
+    { to: '/summaries', label: 'Summaries', icon: NotebookText },
   ]
 
   const handleLogout = () => {

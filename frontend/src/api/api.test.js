@@ -99,3 +99,23 @@ test('quiz generation sends an authenticated JSON request through the shared hel
     globalThis.fetch = originalFetch
   }
 })
+
+test('summary generation posts its payload with authentication through the shared helper', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ summary_type: 'standard' }) }
+  }
+  const payload = { module_id: null, lecture_id: null, summary_type: 'standard' }
+  try {
+    await api.summaries.generate(payload, 'access-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/summaries/generate')
+    assert.equal(captured.config.method, 'POST')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+    assert.equal(captured.config.headers['Content-Type'], 'application/json')
+    assert.deepEqual(JSON.parse(captured.config.body), payload)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
