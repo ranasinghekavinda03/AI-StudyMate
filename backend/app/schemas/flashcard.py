@@ -1,9 +1,12 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 Difficulty = Literal["easy", "medium", "hard"]
+ReviewStatus = Literal["unreviewed", "known", "review_again"]
+ReviewUpdateStatus = Literal["known", "review_again"]
 
 
 class FlashcardGenerateRequest(BaseModel):
@@ -47,10 +50,10 @@ class GeneratedFlashcardPayload(BaseModel):
 
 class FlashcardSourceResponse(BaseModel):
     source_id: str
-    chunk_id: str
-    lecture_id: str
+    chunk_id: str | None
+    lecture_id: str | None
     lecture_title: str
-    module_id: str
+    module_id: str | None
     page_number: int | None
     chunk_index: int
 
@@ -59,6 +62,9 @@ class FlashcardResponse(BaseModel):
     id: str
     front: str
     back: str
+    review_status: ReviewStatus
+    reviewed_at: datetime | None
+    review_count: int
     sources: list[FlashcardSourceResponse]
 
 
@@ -66,3 +72,35 @@ class FlashcardGenerateResponse(BaseModel):
     flashcard_set_id: str
     difficulty: Difficulty
     flashcards: list[FlashcardResponse]
+
+
+class FlashcardSetSummaryResponse(BaseModel):
+    id: str
+    difficulty: Difficulty
+    card_count: int
+    module_id: str | None
+    lecture_id: str | None
+    title: str | None
+    created_at: datetime
+
+
+class FlashcardSetDetailResponse(BaseModel):
+    id: str
+    difficulty: Difficulty
+    module_id: str | None
+    lecture_id: str | None
+    title: str | None
+    created_at: datetime
+    updated_at: datetime
+    flashcards: list[FlashcardResponse]
+
+
+class FlashcardReviewUpdate(BaseModel):
+    status: ReviewUpdateStatus
+
+
+class FlashcardReviewResponse(BaseModel):
+    id: str
+    review_status: ReviewStatus
+    reviewed_at: datetime
+    review_count: int

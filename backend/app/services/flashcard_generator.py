@@ -1,10 +1,11 @@
-"""Grounded, ephemeral flashcard generation over bounded owned study content."""
-
-from uuid import uuid4
+"""Grounded flashcard generation and atomic persistence."""
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from app.models.flashcard import Flashcard, FlashcardSet, FlashcardSource
+from app.models.lecture import Lecture
+from app.models.module import Module
 from app.schemas.flashcard import (
     FlashcardGenerateResponse,
     FlashcardResponse,
@@ -24,6 +25,10 @@ class FlashcardGenerationError(RuntimeError):
 
 class InsufficientFlashcardMaterial(FlashcardGenerationError):
     """Raised when the selected scope cannot support the requested deck."""
+
+
+class FlashcardPersistenceError(RuntimeError):
+    """Raised when a validated deck cannot be saved atomically."""
 
 
 DIFFICULTY_GUIDANCE = {
@@ -124,7 +129,7 @@ def generate_flashcards(
             "Not enough study material is available to generate flashcards."
         )
 
-    cards = []
+    validated_cards = []
     for generated in payload.flashcards:
         source_ids = list(dict.fromkeys(generated.source_ids))
         if any(source_id not in source_map for source_id in source_ids):
@@ -141,13 +146,67 @@ def generate_flashcards(
                 page_number=match.chunk.page_number,
                 chunk_index=match.chunk.chunk_index,
             ))
-        cards.append(FlashcardResponse(
-            id=str(uuid4()),
-            front=generated.front,
-            back=generated.back,
-            sources=mapped_sources,
-        ))
+        validated_cards.append((generated, mapped_sources))
+
+    title = None
+    if lecture_id:
+        lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+        title = lecture.title if lecture else None
+    elif module_id:
+        module = db.query(Module).filter(Module.id == module_id).first()
+        title = module.title if module else None
+
+    try:
+        deck = FlashcardSet(
+            user_id=user_id,
+            module_id=module_id,
+            lecture_id=lecture_id,
+            difficulty=difficulty,
+            title=title,
+        )
+        db.add(deck)
+        db.flush()
+        persisted_cards = []
+        for card_position, (generated, mapped_sources) in enumerate(validated_cards):
+            card = Flashcard(
+                flashcard_set_id=deck.id,
+                position=card_position,
+                front=generated.front,
+                back=generated.back,
+            )
+            db.add(card)
+            db.flush()
+            for source_position, source in enumerate(mapped_sources):
+                db.add(FlashcardSource(
+                    flashcard_id=card.id,
+                    position=source_position,
+                    source_id=source.source_id,
+                    chunk_id=source.chunk_id,
+                    lecture_id=source.lecture_id,
+                    lecture_title_snapshot=source.lecture_title,
+                    module_id=source.module_id,
+                    page_number=source.page_number,
+                    chunk_index=source.chunk_index,
+                ))
+            persisted_cards.append((card, mapped_sources))
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise FlashcardPersistenceError("The generated flashcards could not be saved.") from exc
 
     return FlashcardGenerateResponse(
-        flashcard_set_id=str(uuid4()), difficulty=difficulty, flashcards=cards
+        flashcard_set_id=deck.id,
+        difficulty=difficulty,
+        flashcards=[
+            FlashcardResponse(
+                id=card.id,
+                front=card.front,
+                back=card.back,
+                review_status=card.review_status,
+                reviewed_at=card.reviewed_at,
+                review_count=card.review_count,
+                sources=sources,
+            )
+            for card, sources in persisted_cards
+        ],
     )
