@@ -6,13 +6,12 @@ CREATE TABLE flashcard_sets (
     lecture_id VARCHAR(36) REFERENCES lectures(id) ON DELETE SET NULL,
     difficulty VARCHAR(50) NOT NULL,
     title VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
 );
 CREATE INDEX ix_flashcard_sets_user_id ON flashcard_sets(user_id);
 CREATE INDEX ix_flashcard_sets_module_id ON flashcard_sets(module_id);
 CREATE INDEX ix_flashcard_sets_lecture_id ON flashcard_sets(lecture_id);
-CREATE INDEX ix_flashcard_sets_user_created_at ON flashcard_sets(user_id, created_at DESC);
 
 CREATE TABLE flashcards (
     id VARCHAR(36) PRIMARY KEY,
@@ -20,10 +19,10 @@ CREATE TABLE flashcards (
     position INTEGER NOT NULL,
     front TEXT NOT NULL,
     back TEXT NOT NULL,
-    review_status VARCHAR(20) NOT NULL DEFAULT 'unreviewed',
-    reviewed_at TIMESTAMP WITH TIME ZONE,
-    review_count INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    review_status VARCHAR(20) NOT NULL,
+    reviewed_at TIMESTAMP WITHOUT TIME ZONE,
+    review_count INTEGER NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     CONSTRAINT ck_flashcards_review_status CHECK (review_status IN ('unreviewed', 'known', 'review_again')),
     CONSTRAINT uq_flashcards_set_position UNIQUE (flashcard_set_id, position)
 );
