@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.core.config import settings
+from app.models.flashcard import Flashcard, FlashcardSet, FlashcardSource
 from app.services import flashcard_generator, llm_service
 from app.services.flashcard_generator import (
     FLASHCARD_CONTEXT_CHUNK_LIMIT,
@@ -78,15 +79,23 @@ def _stub_generation(monkeypatch, output, *, matches=None, capture=None):
     monkeypatch.setattr(flashcard_generator, "generate_structured_answer", generate)
 
 
-def test_valid_easy_deck_returns_exact_count_and_grounded_sources(monkeypatch):
+def test_valid_easy_deck_returns_exact_count_and_grounded_sources(monkeypatch, db_session):
     _stub_generation(monkeypatch, _payload(5))
     result = generate_flashcards(
-        SimpleNamespace(), user_id="user-1", difficulty="easy", flashcard_count=5
+        db_session, user_id="user-1", difficulty="easy", flashcard_count=5
     )
     assert result.difficulty == "easy"
     assert result.flashcard_set_id
     assert len(result.flashcards) == 5
     assert all(card.front and card.back and card.sources for card in result.flashcards)
+    assert db_session.query(FlashcardSet).count() == 1
+    assert db_session.query(Flashcard).count() == 5
+    assert db_session.query(FlashcardSource).count() == 5
+    assert {card.id for card in result.flashcards} == {
+        card.id for card in db_session.query(Flashcard).all()
+    }
+    assert all(card.review_status == "unreviewed" for card in result.flashcards)
+    assert all(card.reviewed_at is None for card in result.flashcards)
 
 
 def test_medium_and_hard_prompts_include_specific_guidance_and_coverage_limit():
@@ -141,10 +150,10 @@ def test_flashcard_scope_enforces_module_and_lecture_ownership(client, auth_head
     ).status_code == 404
 
 
-def test_valid_source_ids_map_to_trusted_metadata_and_preserve_pages(monkeypatch):
+def test_valid_source_ids_map_to_trusted_metadata_and_preserve_pages(monkeypatch, db_session):
     _stub_generation(monkeypatch, _payload(source_ids=["S2", "S1", "S2"]))
     result = generate_flashcards(
-        SimpleNamespace(), user_id="user-1", difficulty="medium", flashcard_count=1
+        db_session, user_id="user-1", difficulty="medium", flashcard_count=1
     )
     sources = result.flashcards[0].sources
     assert [source.source_id for source in sources] == ["S2", "S1"]
@@ -253,7 +262,7 @@ def test_exhausted_provider_retries_return_safe_502(client, auth_headers, monkey
     assert models.calls == 3
 
 
-def test_endpoint_returns_ephemeral_ids_and_no_embeddings(client, auth_headers, tmp_path, monkeypatch):
+def test_endpoint_returns_persistent_ids_and_no_embeddings(client, auth_headers, db_session, tmp_path, monkeypatch):
     headers, _ = auth_headers
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
     module_id = client.post(
@@ -277,4 +286,112 @@ def test_endpoint_returns_ephemeral_ids_and_no_embeddings(client, auth_headers, 
     assert body["flashcards"][0]["id"]
     assert body["flashcards"][0]["sources"][0]["lecture_id"] == lecture["id"]
     assert body["flashcards"][0]["sources"][0]["page_number"] is None
+    assert body["flashcards"][0]["review_status"] == "unreviewed"
+    assert body["flashcards"][0]["reviewed_at"] is None
+    assert db_session.get(FlashcardSet, body["flashcard_set_id"]) is not None
+    assert db_session.get(Flashcard, body["flashcards"][0]["id"]) is not None
+    assert db_session.query(FlashcardSource).count() == 1
     assert "embedding" not in response.text
+
+
+def _generate_deck(client, headers, monkeypatch, *, count=2):
+    _stub_generation(monkeypatch, _payload(count))
+    response = client.post(
+        "/api/v1/flashcards/generate",
+        headers=headers,
+        json={"difficulty": "medium", "flashcard_count": count},
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_saved_set_list_detail_review_and_delete(client, auth_headers, db_session, monkeypatch):
+    headers, _ = auth_headers
+    deck = _generate_deck(client, headers, monkeypatch)
+
+    listing = client.get("/api/v1/flashcards/sets", headers=headers)
+    assert listing.status_code == 200
+    assert listing.json()[0]["id"] == deck["flashcard_set_id"]
+    assert listing.json()[0]["card_count"] == 2
+
+    detail = client.get(f"/api/v1/flashcards/sets/{deck['flashcard_set_id']}", headers=headers)
+    assert detail.status_code == 200
+    assert [card["id"] for card in detail.json()["flashcards"]] == [
+        card["id"] for card in deck["flashcards"]
+    ]
+    assert detail.json()["flashcards"][0]["sources"][0]["lecture_title"] == "Lecture 1"
+
+    card_id = deck["flashcards"][0]["id"]
+    known = client.patch(f"/api/v1/flashcards/{card_id}/review", headers=headers, json={"status": "known"})
+    assert known.status_code == 200
+    assert known.json()["review_status"] == "known"
+    assert known.json()["reviewed_at"] is not None
+    assert known.json()["review_count"] == 1
+    again = client.patch(
+        f"/api/v1/flashcards/{card_id}/review", headers=headers, json={"status": "review_again"}
+    )
+    assert again.status_code == 200
+    assert again.json()["review_status"] == "review_again"
+    assert again.json()["review_count"] == 2
+    assert client.patch(
+        f"/api/v1/flashcards/{card_id}/review", headers=headers, json={"status": "unsupported"}
+    ).status_code == 422
+
+    assert client.delete(f"/api/v1/flashcards/sets/{deck['flashcard_set_id']}", headers=headers).status_code == 204
+    assert db_session.query(FlashcardSet).count() == 0
+    assert db_session.query(Flashcard).count() == 0
+    assert db_session.query(FlashcardSource).count() == 0
+
+
+def test_saved_flashcards_are_isolated_by_owner(client, auth_headers, db_session, monkeypatch):
+    owner_headers, _ = auth_headers
+    deck = _generate_deck(client, owner_headers, monkeypatch, count=1)
+    other = client.post(
+        "/api/v1/auth/register",
+        json={"name": "Other", "email": "flashcard-other@example.com", "password": "Password123!", "role": "student"},
+    )
+    other_headers = {"Authorization": f"Bearer {other.json()['access_token']}"}
+    set_id = deck["flashcard_set_id"]
+    card_id = deck["flashcards"][0]["id"]
+
+    assert client.get("/api/v1/flashcards/sets", headers=other_headers).json() == []
+    assert client.get(f"/api/v1/flashcards/sets/{set_id}", headers=other_headers).status_code == 404
+    assert client.patch(
+        f"/api/v1/flashcards/{card_id}/review", headers=other_headers, json={"status": "known"}
+    ).status_code == 404
+    assert client.delete(f"/api/v1/flashcards/sets/{set_id}", headers=other_headers).status_code == 404
+    assert db_session.get(FlashcardSet, set_id) is not None
+
+
+def test_persistence_failure_rolls_back_entire_deck(client, auth_headers, db_session, monkeypatch):
+    headers, _ = auth_headers
+    _stub_generation(monkeypatch, _payload(2))
+    original_flush = db_session.flush
+    calls = 0
+
+    def fail_after_set(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("simulated persistence failure")
+        return original_flush(*args, **kwargs)
+
+    monkeypatch.setattr(db_session, "flush", fail_after_set)
+    response = client.post(
+        "/api/v1/flashcards/generate", headers=headers, json={"flashcard_count": 2}
+    )
+    assert response.status_code == 500
+    assert db_session.query(FlashcardSet).count() == 0
+    assert db_session.query(Flashcard).count() == 0
+    assert db_session.query(FlashcardSource).count() == 0
+
+
+@pytest.mark.parametrize("output", ["not json", _payload(source_ids=["S99"])])
+def test_invalid_generation_never_persists(client, auth_headers, db_session, monkeypatch, output):
+    headers, _ = auth_headers
+    _stub_generation(monkeypatch, output)
+    response = client.post(
+        "/api/v1/flashcards/generate", headers=headers, json={"flashcard_count": 1}
+    )
+    assert response.status_code == 502
+    assert db_session.query(FlashcardSet).count() == 0
