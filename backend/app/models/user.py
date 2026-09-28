@@ -19,3 +19,4 @@ class User(Base):
     # Relationships
     modules = relationship("Module", back_populates="user", cascade="all, delete-orphan")
     quiz_attempts = relationship("QuizAttempt", back_populates="user", cascade="all, delete-orphan")
+    flashcard_sets = relationship("FlashcardSet", back_populates="user", cascade="all, delete-orphan")
