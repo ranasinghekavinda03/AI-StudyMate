@@ -164,6 +164,27 @@ const api = {
         body: JSON.stringify(payload),
         token,
       }),
+    listSets: (token) =>
+      request('/flashcards/sets', {
+        method: 'GET',
+        token,
+      }),
+    getSet: (setId, token) =>
+      request(`/flashcards/sets/${setId}`, {
+        method: 'GET',
+        token,
+      }),
+    review: (cardId, status, token) =>
+      request(`/flashcards/${cardId}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+        token,
+      }),
+    deleteSet: (setId, token) =>
+      request(`/flashcards/sets/${setId}`, {
+        method: 'DELETE',
+        token,
+      }),
   },
 }
 

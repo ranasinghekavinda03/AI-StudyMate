@@ -139,3 +139,58 @@ test('flashcard generation posts its payload with authentication through the sha
     globalThis.fetch = originalFetch
   }
 })
+
+test('saved flashcard list and detail use authenticated GET requests', async () => {
+  const originalFetch = globalThis.fetch
+  const captured = []
+  globalThis.fetch = async (url, config) => {
+    captured.push({ url, config })
+    return { ok: true, status: 200, json: async () => [] }
+  }
+  try {
+    await api.flashcards.listSets('access-token')
+    await api.flashcards.getSet('set-1', 'access-token')
+    assert.equal(captured[0].url, 'http://localhost:8000/api/v1/flashcards/sets')
+    assert.equal(captured[1].url, 'http://localhost:8000/api/v1/flashcards/sets/set-1')
+    assert.ok(captured.every(({ config }) => config.method === 'GET' && config.headers.Authorization === 'Bearer access-token'))
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('flashcard review sends exact known and review-again payloads', async () => {
+  const originalFetch = globalThis.fetch
+  const captured = []
+  globalThis.fetch = async (url, config) => {
+    captured.push({ url, config })
+    return { ok: true, status: 200, json: async () => ({ id: 'card-1', review_status: 'known', reviewed_at: '2026-09-29T10:00:00', review_count: 1 }) }
+  }
+  try {
+    await api.flashcards.review('card-1', 'known', 'access-token')
+    await api.flashcards.review('card-1', 'review_again', 'access-token')
+    assert.ok(captured.every(({ url }) => url === 'http://localhost:8000/api/v1/flashcards/card-1/review'))
+    assert.ok(captured.every(({ config }) => config.method === 'PATCH' && config.headers.Authorization === 'Bearer access-token'))
+    assert.deepEqual(captured.map(({ config }) => JSON.parse(config.body)), [{ status: 'known' }, { status: 'review_again' }])
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('saved flashcard deletion handles authenticated 204 without parsing JSON', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  let jsonCalled = false
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 204, json: async () => { jsonCalled = true } }
+  }
+  try {
+    assert.equal(await api.flashcards.deleteSet('set-1', 'access-token'), null)
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/flashcards/sets/set-1')
+    assert.equal(captured.config.method, 'DELETE')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+    assert.equal(jsonCalled, false)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
