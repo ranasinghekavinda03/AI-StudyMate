@@ -101,6 +101,18 @@
 /* ---------- Flashcards Layout ---------- */
 .flashcards-page { max-width: 820px; margin: 0 auto; }
 .flashcards-page-header { text-align: center; margin-bottom: var(--space-6); }
+.flashcards-saved { margin-bottom: var(--space-5); padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
+.flashcards-saved-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-4); }
+.flashcards-saved-header h2 { font-size: var(--text-lg); margin-bottom: var(--space-1); }
+.flashcards-saved-header p, .flashcards-saved-empty { color: var(--text-muted); font-size: var(--text-sm); }
+.flashcards-saved-list { display: grid; gap: var(--space-2); }
+.flashcards-saved-item { display: flex; align-items: center; gap: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); }
+.flashcards-saved-item.active { border-color: var(--primary); background: var(--primary-light); }
+.flashcards-saved-open { flex: 1; min-width: 0; padding: var(--space-3); border: 0; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; }
+.flashcards-saved-open strong, .flashcards-saved-open span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flashcards-saved-open span { margin-top: var(--space-1); color: var(--text-muted); font-size: var(--text-xs); text-transform: capitalize; }
+.flashcards-saved-open:disabled { cursor: wait; opacity: 0.7; }
+.flashcards-saved-delete { flex: 0 0 auto; margin-right: var(--space-2); color: var(--danger); }
 .flashcards-controls,
 .flashcards-review {
   background: var(--surface);
@@ -133,6 +145,7 @@
 .flashcards-generate-button { width: 100%; }
 .flashcards-generating { display: flex; justify-content: center; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); margin-bottom: var(--space-4); }
 .flashcards-review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; }
+.flashcards-review-badges { display: flex; align-items: center; gap: var(--space-2); }
 .flashcard-card { min-height: 360px; display: flex; flex-direction: column; justify-content: center; padding: var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--bg); box-shadow: var(--shadow-sm); }
 .flashcard-card h2 { font-size: var(--text-2xl); line-height: 1.45; margin: var(--space-3) 0 var(--space-8); }
 .flashcard-side-label { color: var(--accent); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -141,6 +154,9 @@
 .flashcard-answer p { color: var(--text-secondary); font-size: var(--text-lg); line-height: 1.7; margin: var(--space-2) 0 var(--space-4); white-space: pre-wrap; }
 .flashcard-sources { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .flashcard-source { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--accent-border); border-radius: var(--radius-md); color: var(--text-secondary); font-size: var(--text-xs); background: var(--surface); }
+.flashcard-review-status { margin-top: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); }
+.flashcard-review-status strong { color: var(--text-primary); }
+.flashcard-review-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
 .flashcards-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-5); }
 .flashcards-complete { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-5); padding: var(--space-4); border: 1px solid var(--accent-border); border-radius: var(--radius-lg); background: var(--accent-light); color: var(--accent); }
 .flashcards-complete h3 { font-size: var(--text-base); margin-bottom: 2px; }
@@ -150,6 +166,8 @@
 @media (max-width: 640px) {
   .flashcards-controls, .flashcards-review, .flashcard-card { padding: var(--space-5); }
   .flashcards-scope-grid, .flashcards-difficulty-grid { grid-template-columns: 1fr; }
+  .flashcards-saved-item { align-items: stretch; flex-direction: column; gap: 0; }
+  .flashcards-saved-delete { align-self: flex-end; margin: 0 var(--space-2) var(--space-2); }
   .flashcard-card { min-height: 320px; }
 }
 

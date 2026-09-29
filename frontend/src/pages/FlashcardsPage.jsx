@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, CheckCircle2, FileText, RotateCcw, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, CheckCircle2, FileText, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/authContextValue'
 import { moduleLabel } from './lectureDisplay'
@@ -9,12 +9,21 @@ import {
   FLASHCARD_DIFFICULTY_DETAILS,
   buildFlashcardPayload,
   changeFlashcardModule,
+  applyReviewResponse,
+  countReviewStatuses,
+  createCardReviewController,
   createFlashcardGenerationController,
   flashcardErrorMessage,
+  formatSavedSetDate,
   formatFlashcardSource,
   moveCard,
+  normalizeSavedSet,
+  normalizeSavedSets,
   resetFlashcardReview,
+  reviewStatusLabel,
   revealCard,
+  savedFlashcardErrorMessage,
+  savedSetLabel,
 } from './flashcards'
 
 export default function FlashcardsPage() {
@@ -29,11 +38,43 @@ export default function FlashcardsPage() {
   const [scopeError, setScopeError] = useState('')
   const [generating, setGenerating] = useState(false)
   const [generationError, setGenerationError] = useState('')
+  const [savedSets, setSavedSets] = useState([])
+  const [savedSetsLoading, setSavedSetsLoading] = useState(true)
+  const [savedSetsError, setSavedSetsError] = useState('')
+  const [openingSetId, setOpeningSetId] = useState('')
+  const [deletingSetId, setDeletingSetId] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [currentSetId, setCurrentSetId] = useState('')
   const [flashcards, setFlashcards] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [revealedCards, setRevealedCards] = useState({})
+  const [reviewSavingCardId, setReviewSavingCardId] = useState('')
+  const [reviewError, setReviewError] = useState('')
   const generationActiveRef = useRef(false)
   const [generationController] = useState(createFlashcardGenerationController)
+  const [reviewController] = useState(createCardReviewController)
+
+  const loadSavedSets = useCallback(async () => {
+    setSavedSetsLoading(true)
+    setSavedSetsError('')
+    try {
+      setSavedSets(normalizeSavedSets(await api.flashcards.listSets(token)))
+    } catch (error) {
+      setSavedSetsError(savedFlashcardErrorMessage(error, 'Unable to load saved flashcard sets.'))
+    } finally {
+      setSavedSetsLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    let active = true
+    api.flashcards.listSets(token).then((data) => {
+      if (active) setSavedSets(normalizeSavedSets(data))
+    }).catch((error) => {
+      if (active) setSavedSetsError(savedFlashcardErrorMessage(error, 'Unable to load saved flashcard sets.'))
+    }).finally(() => { if (active) setSavedSetsLoading(false) })
+    return () => { active = false }
+  }, [token])
 
   useEffect(() => {
     let active = true
@@ -83,8 +124,11 @@ export default function FlashcardsPage() {
       const result = await generationController.generate({ payload, token, request: api.flashcards.generate })
       if (result.started) {
         setFlashcards(result.response.flashcards)
+        setCurrentSetId(result.response.flashcard_set_id)
+        setDifficulty(result.response.difficulty)
         setCurrentIndex(0)
         setRevealedCards({})
+        await loadSavedSets()
       }
     } catch (error) {
       setGenerationError(flashcardErrorMessage(error))
@@ -97,14 +141,66 @@ export default function FlashcardsPage() {
   function resetReview() {
     const reset = resetFlashcardReview()
     setFlashcards(reset.flashcards)
+    setCurrentSetId('')
     setCurrentIndex(reset.currentIndex)
     setRevealedCards(reset.revealedCards)
     setGenerationError('')
+    setReviewError('')
+  }
+
+  async function openSavedSet(setId) {
+    if (openingSetId) return
+    setOpeningSetId(setId)
+    setSavedSetsError('')
+    try {
+      const deck = normalizeSavedSet(await api.flashcards.getSet(setId, token))
+      setCurrentSetId(deck.id)
+      setDifficulty(deck.difficulty)
+      setFlashcards(deck.flashcards)
+      setCurrentIndex(0)
+      setRevealedCards({})
+      setReviewError('')
+    } catch (error) {
+      setSavedSetsError(savedFlashcardErrorMessage(error, 'Unable to open this saved flashcard set.'))
+    } finally {
+      setOpeningSetId('')
+    }
+  }
+
+  async function updateReviewStatus(status) {
+    if (!currentCard || reviewSavingCardId === currentCard.id) return
+    const cardId = currentCard.id
+    setReviewSavingCardId(cardId)
+    setReviewError('')
+    try {
+      const result = await reviewController.review({ cardId, status, token, request: api.flashcards.review })
+      if (result.started) setFlashcards((cards) => applyReviewResponse(cards, cardId, result.response))
+    } catch (error) {
+      setReviewError(savedFlashcardErrorMessage(error, 'Unable to save this review status. Please try again.'))
+    } finally {
+      setReviewSavingCardId('')
+    }
+  }
+
+  async function deleteSavedSet(setId) {
+    if (deletingSetId || !globalThis.confirm('Delete this saved flashcard set?')) return
+    setDeletingSetId(setId)
+    setDeleteError('')
+    try {
+      await api.flashcards.deleteSet(setId, token)
+      setSavedSets((sets) => sets.filter((set) => set.id !== setId))
+      if (currentSetId === setId) resetReview()
+    } catch (error) {
+      setDeleteError(savedFlashcardErrorMessage(error, 'Unable to delete this saved flashcard set.'))
+    } finally {
+      setDeletingSetId('')
+    }
   }
 
   const currentCard = flashcards[currentIndex]
   const answerRevealed = currentCard ? Boolean(revealedCards[currentCard.id]) : false
   const reviewComplete = Boolean(currentCard && currentIndex === flashcards.length - 1 && answerRevealed)
+  const reviewCounts = countReviewStatuses(flashcards)
 
   return (
     <div className="flashcards-page stagger-children">
@@ -112,6 +208,25 @@ export default function FlashcardsPage() {
         <h1>Grounded Flashcard Generator</h1>
         <p>Create focused review cards from your uploaded study materials.</p>
       </div>
+
+      <section className="flashcards-saved" aria-label="Saved flashcard sets">
+        <div className="flashcards-saved-header"><div><h2>Saved Sets</h2><p>Reopen a persisted deck and continue reviewing.</p></div></div>
+        {savedSetsError && <div className="auth-error flashcards-alert" role="alert">{savedSetsError}</div>}
+        {deleteError && <div className="auth-error flashcards-alert" role="alert">{deleteError}</div>}
+        {savedSetsLoading ? <p className="flashcards-saved-empty" role="status">Loading saved flashcard sets...</p> : savedSets.length === 0 ? <p className="flashcards-saved-empty">No saved flashcard sets yet.</p> : (
+          <div className="flashcards-saved-list">
+            {savedSets.map((set) => (
+              <div className={`flashcards-saved-item ${currentSetId === set.id ? 'active' : ''}`} key={set.id}>
+                <button type="button" className="flashcards-saved-open" onClick={() => openSavedSet(set.id)} disabled={Boolean(openingSetId || deletingSetId)}>
+                  <strong>{savedSetLabel(set)}</strong>
+                  <span>{set.card_count} cards · {set.difficulty} · {formatSavedSetDate(set.created_at)}</span>
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm flashcards-saved-delete" aria-label={`Delete ${savedSetLabel(set)}`} onClick={() => deleteSavedSet(set.id)} disabled={Boolean(deletingSetId || openingSetId)}><Trash2 size={15} />{deletingSetId === set.id ? 'Deleting...' : 'Delete'}</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {flashcards.length === 0 ? (
         <section className="flashcards-controls" aria-label="Flashcard options">
@@ -153,7 +268,8 @@ export default function FlashcardsPage() {
         </section>
       ) : (
         <section className="flashcards-review" aria-label="Flashcard review">
-          <div className="flashcards-review-header"><span>Card {currentIndex + 1} of {flashcards.length}</span><span className="badge badge-accent">{difficulty}</span></div>
+          <div className="flashcards-review-header"><span>Card {currentIndex + 1} of {flashcards.length}</span><div className="flashcards-review-badges"><span className="badge">{reviewStatusLabel(currentCard.review_status)}</span><span className="badge badge-accent">{difficulty}</span></div></div>
+          {reviewError && <div className="auth-error flashcards-alert" role="alert">{reviewError}</div>}
           <article className="flashcard-card">
             <span className="flashcard-side-label">Prompt</span>
             <h2>{currentCard.front}</h2>
@@ -164,6 +280,12 @@ export default function FlashcardsPage() {
                 <span className="flashcard-side-label">Answer</span>
                 <p>{currentCard.back}</p>
                 {currentCard.sources.length > 0 && <div className="flashcard-sources" aria-label="Card sources">{currentCard.sources.map((source) => <div className="flashcard-source" key={`${source.source_id}-${source.chunk_id}`}><FileText size={14} /><span>{formatFlashcardSource(source)}</span></div>)}</div>}
+                <div className="flashcard-review-status">Status: <strong>{reviewStatusLabel(currentCard.review_status)}</strong>{currentCard.review_count > 0 && <span> · Reviewed {currentCard.review_count} {currentCard.review_count === 1 ? 'time' : 'times'}</span>}</div>
+                <div className="flashcard-review-actions">
+                  <button type="button" className="btn btn-secondary" onClick={() => updateReviewStatus('review_again')} disabled={reviewSavingCardId === currentCard.id}>Review Again</button>
+                  <button type="button" className="btn btn-primary" onClick={() => updateReviewStatus('known')} disabled={reviewSavingCardId === currentCard.id}>I Know This</button>
+                </div>
+                {reviewSavingCardId === currentCard.id && <span className="flashcards-field-note" role="status">Saving...</span>}
               </div>
             )}
           </article>
@@ -171,7 +293,7 @@ export default function FlashcardsPage() {
             <button type="button" className="btn btn-secondary" onClick={() => setCurrentIndex((index) => moveCard(index, -1, flashcards.length))} disabled={currentIndex === 0}><ArrowLeft size={16} /> Previous</button>
             <button type="button" className="btn btn-primary" onClick={() => setCurrentIndex((index) => moveCard(index, 1, flashcards.length))} disabled={currentIndex === flashcards.length - 1}>Next <ArrowRight size={16} /></button>
           </div>
-          {reviewComplete && <div className="flashcards-complete" role="status"><CheckCircle2 size={28} /><div><h3>Flashcard Review Complete</h3><p>You reached the end of this set.</p></div></div>}
+          {reviewComplete && <div className="flashcards-complete" role="status"><CheckCircle2 size={28} /><div><h3>Flashcard Review Complete</h3><p>Known: {reviewCounts.known} · Review Again: {reviewCounts.review_again} · Unreviewed: {reviewCounts.unreviewed}</p></div></div>}
           <button type="button" className="btn btn-ghost flashcards-reset-button" onClick={resetReview}><RotateCcw size={16} /> Generate Another Set</button>
         </section>
       )}
