@@ -1,5 +1,6 @@
 export const FLASHCARD_DIFFICULTIES = ['easy', 'medium', 'hard']
 export const FLASHCARD_COUNTS = [5, 10, 15, 20, 30]
+export const FLASHCARD_REVIEW_STATUSES = ['unreviewed', 'known', 'review_again']
 
 export const FLASHCARD_DIFFICULTY_DETAILS = {
   easy: 'Definitions and direct facts',
@@ -47,9 +48,91 @@ export function normalizeFlashcardResponse(response) {
       || typeof card.front !== 'string'
       || typeof card.back !== 'string'
       || !Array.isArray(card.sources)
+      || !FLASHCARD_REVIEW_STATUSES.includes(card.review_status)
+      || !Number.isInteger(card.review_count)
     ) throw new Error('The server returned an invalid flashcard response.')
   }
   return response
+}
+
+export function normalizeSavedSets(response) {
+  if (!Array.isArray(response)) throw new Error('The server returned an invalid saved flashcard list.')
+  for (const set of response) {
+    if (
+      typeof set?.id !== 'string'
+      || !FLASHCARD_DIFFICULTIES.includes(set.difficulty)
+      || !Number.isInteger(set.card_count)
+      || typeof set.created_at !== 'string'
+    ) throw new Error('The server returned an invalid saved flashcard list.')
+  }
+  return response
+}
+
+export function normalizeSavedSet(response) {
+  if (
+    !response
+    || typeof response.id !== 'string'
+    || !FLASHCARD_DIFFICULTIES.includes(response.difficulty)
+    || !Array.isArray(response.flashcards)
+  ) throw new Error('The server returned an invalid saved flashcard set.')
+  normalizeFlashcardResponse({
+    flashcard_set_id: response.id,
+    difficulty: response.difficulty,
+    flashcards: response.flashcards,
+  })
+  return response
+}
+
+export function applyReviewResponse(cards, cardId, response) {
+  if (
+    response?.id !== cardId
+    || !FLASHCARD_REVIEW_STATUSES.includes(response.review_status)
+    || typeof response.reviewed_at !== 'string'
+    || !Number.isInteger(response.review_count)
+  ) throw new Error('The server returned an invalid flashcard review.')
+  return cards.map((card) => card.id === cardId ? { ...card, ...response } : card)
+}
+
+export function countReviewStatuses(cards) {
+  return cards.reduce((counts, card) => {
+    if (FLASHCARD_REVIEW_STATUSES.includes(card.review_status)) counts[card.review_status] += 1
+    return counts
+  }, { known: 0, review_again: 0, unreviewed: 0 })
+}
+
+export function reviewStatusLabel(status) {
+  if (status === 'known') return 'Known'
+  if (status === 'review_again') return 'Review Again'
+  return 'Unreviewed'
+}
+
+export function savedSetLabel(set) {
+  return set?.title || 'All study materials'
+}
+
+export function formatSavedSetDate(value) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Date unavailable' : date.toLocaleDateString()
+}
+
+export function savedFlashcardErrorMessage(error, fallback) {
+  if (error?.status === 404) return 'This saved flashcard set is no longer available.'
+  return fallback
+}
+
+export function createCardReviewController() {
+  const activeCards = new Set()
+  return {
+    async review({ cardId, status, token, request }) {
+      if (activeCards.has(cardId)) return { started: false }
+      activeCards.add(cardId)
+      try {
+        return { started: true, response: await request(cardId, status, token) }
+      } finally {
+        activeCards.delete(cardId)
+      }
+    },
+  }
 }
 
 export function formatFlashcardSource(source) {
