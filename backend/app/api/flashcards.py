@@ -1,9 +1,7 @@
 """Grounded flashcard generation, persistence, and review routes."""
 
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import case, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,6 +11,8 @@ from app.models.user import User
 from app.schemas.flashcard import (
     FlashcardGenerateRequest,
     FlashcardGenerateResponse,
+    DueFlashcardResponse,
+    DueFlashcardsResponse,
     FlashcardResponse,
     FlashcardReviewResponse,
     FlashcardReviewUpdate,
@@ -26,6 +26,7 @@ from app.services.flashcard_generator import (
     FlashcardPersistenceError,
     generate_flashcards,
 )
+from app.services.flashcard_scheduler import apply_review_schedule, utc_now_naive
 from app.services.llm_service import LLMConfigurationError, LLMProviderError
 from app.services.retrieval_service import RetrievalScopeNotFound
 
@@ -41,6 +42,9 @@ def _card_response(card: Flashcard) -> FlashcardResponse:
         review_status=card.review_status,
         reviewed_at=card.reviewed_at,
         review_count=card.review_count,
+        review_streak=card.review_streak,
+        interval_days=card.interval_days,
+        next_review_at=card.next_review_at,
         sources=[
             FlashcardSourceResponse(
                 source_id=source.source_id,
@@ -53,6 +57,51 @@ def _card_response(card: Flashcard) -> FlashcardResponse:
             )
             for source in card.sources
         ],
+    )
+
+
+@router.get("/due", response_model=DueFlashcardsResponse)
+def get_due_cards(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    now = utc_now_naive()
+    due_filter = or_(Flashcard.next_review_at.is_(None), Flashcard.next_review_at <= now)
+    owned_due = (
+        db.query(Flashcard)
+        .join(FlashcardSet, Flashcard.flashcard_set_id == FlashcardSet.id)
+        .filter(FlashcardSet.user_id == current_user.id, due_filter)
+    )
+    total = owned_due.count()
+    cards = (
+        owned_due.options(selectinload(Flashcard.sources))
+        .order_by(
+            case((Flashcard.next_review_at.is_(None), 0), else_=1),
+            Flashcard.next_review_at.asc(),
+            Flashcard.flashcard_set_id.asc(),
+            Flashcard.position.asc(),
+            Flashcard.id.asc(),
+        )
+        .limit(limit)
+        .all()
+    )
+    set_titles = {
+        deck_id: title
+        for deck_id, title in db.query(FlashcardSet.id, FlashcardSet.title)
+        .filter(FlashcardSet.id.in_({card.flashcard_set_id for card in cards}))
+        .all()
+    } if cards else {}
+    return DueFlashcardsResponse(
+        cards=[
+            DueFlashcardResponse(
+                **_card_response(card).model_dump(),
+                flashcard_set_id=card.flashcard_set_id,
+                set_title=set_titles.get(card.flashcard_set_id),
+            )
+            for card in cards
+        ],
+        total=total,
     )
 
 
@@ -165,9 +214,7 @@ def update_review(
     )
     if not card:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard not found.")
-    card.review_status = request.status
-    card.reviewed_at = datetime.now(timezone.utc)
-    card.review_count += 1
+    apply_review_schedule(card, request.status)
     try:
         db.commit()
         db.refresh(card)
@@ -182,6 +229,9 @@ def update_review(
         review_status=card.review_status,
         reviewed_at=card.reviewed_at,
         review_count=card.review_count,
+        review_streak=card.review_streak,
+        interval_days=card.interval_days,
+        next_review_at=card.next_review_at,
     )
 
 

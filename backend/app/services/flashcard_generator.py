@@ -205,6 +205,9 @@ def generate_flashcards(
                 review_status=card.review_status,
                 reviewed_at=card.reviewed_at,
                 review_count=card.review_count,
+                review_streak=card.review_streak,
+                interval_days=card.interval_days,
+                next_review_at=card.next_review_at,
                 sources=sources,
             )
             for card, sources in persisted_cards

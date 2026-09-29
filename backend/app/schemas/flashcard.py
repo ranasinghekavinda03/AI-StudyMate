@@ -65,6 +65,9 @@ class FlashcardResponse(BaseModel):
     review_status: ReviewStatus
     reviewed_at: datetime | None
     review_count: int
+    review_streak: int
+    interval_days: int
+    next_review_at: datetime | None
     sources: list[FlashcardSourceResponse]
 
 
@@ -104,3 +107,16 @@ class FlashcardReviewResponse(BaseModel):
     review_status: ReviewStatus
     reviewed_at: datetime
     review_count: int
+    review_streak: int
+    interval_days: int
+    next_review_at: datetime
+
+
+class DueFlashcardResponse(FlashcardResponse):
+    flashcard_set_id: str
+    set_title: str | None
+
+
+class DueFlashcardsResponse(BaseModel):
+    cards: list[DueFlashcardResponse]
+    total: int
