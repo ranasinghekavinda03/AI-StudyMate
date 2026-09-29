@@ -2,6 +2,23 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import api from './api.js'
 
+test('dashboard uses the shared authenticated request helper', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ stats: {}, recent_lectures: [], recent_flashcard_sets: [] }) }
+  }
+  try {
+    await api.dashboard.get('access-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/dashboard')
+    assert.equal(captured.config.method, 'GET')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('lecture upload sends authenticated FormData without a manual Content-Type header', async () => {
   const originalFetch = globalThis.fetch
   let captured

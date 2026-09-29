@@ -42,6 +42,35 @@
   }
 }
 
+/* ---------- Dashboard Layout ---------- */
+.dashboard-header-actions { display: flex; gap: var(--space-3); }
+.dashboard-message { padding: var(--space-8); text-align: center; color: var(--text-secondary); }
+.dashboard-stats-grid { grid-template-columns: repeat(4, 1fr); }
+.dashboard-review-card { margin-bottom: var(--space-8); }
+.dashboard-review-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); padding: var(--space-5) var(--space-6); }
+.dashboard-review-stat > div:first-child { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); }
+.dashboard-review-stat strong { font-size: var(--text-xl); }
+.dashboard-review-stat span { color: var(--text-muted); font-size: var(--text-sm); }
+.dashboard-progress-known { background: var(--success); }
+.dashboard-progress-again { background: var(--warning); }
+.dashboard-progress-unreviewed { background: var(--text-muted); }
+.dashboard-quick-actions { margin-bottom: var(--space-8); }
+.dashboard-section-label { margin-bottom: var(--space-3); color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.dashboard-icon-primary { color: var(--primary); background: var(--primary-light); }
+.dashboard-icon-accent { color: var(--accent); background: var(--accent-light); }
+.dashboard-icon-warning { color: var(--warning); background: var(--warning-light); }
+.dashboard-view-all { display: flex; align-items: center; gap: 2px; font-size: var(--text-xs); font-weight: 600; }
+.dashboard-empty { padding: var(--space-8); text-align: center; color: var(--text-muted); font-size: var(--text-sm); }
+
+@media (max-width: 1100px) {
+  .dashboard-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .dashboard-header-actions { width: 100%; flex-wrap: wrap; }
+  .dashboard-stats-grid, .dashboard-review-grid { grid-template-columns: 1fr; }
+}
+
 /* ---------- Summary Layout ---------- */
 .summary-page { max-width: 920px; margin: 0 auto; }
 .summary-page-header { text-align: center; margin-bottom: var(--space-6); }

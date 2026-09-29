@@ -62,6 +62,14 @@ const api = {
       }),
   },
 
+  dashboard: {
+    get: (token) =>
+      request('/dashboard', {
+        method: 'GET',
+        token,
+      }),
+  },
+
   modules: {
     list: (token) =>
       request('/modules', {
