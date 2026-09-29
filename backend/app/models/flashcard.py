@@ -42,6 +42,9 @@ class Flashcard(Base):
     review_status = Column(String(20), default="unreviewed", nullable=False, index=True)
     reviewed_at = Column(DateTime, nullable=True)
     review_count = Column(Integer, default=0, nullable=False)
+    review_streak = Column(Integer, default=0, nullable=False)
+    interval_days = Column(Integer, default=0, nullable=False)
+    next_review_at = Column(DateTime, nullable=True, index=True)
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
     flashcard_set = relationship("FlashcardSet", back_populates="flashcards")

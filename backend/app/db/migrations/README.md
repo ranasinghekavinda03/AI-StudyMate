@@ -16,3 +16,8 @@ Migration `003_flashcard_persistence.sql` adds saved flashcard sets, ordered car
 source metadata snapshots, and simple review status. Source entity foreign keys use
 `ON DELETE SET NULL` so saved decks survive source cleanup; deleting a deck cascades
 only to its cards and source rows.
+
+Migration `004_flashcard_spaced_repetition.sql` adds the nullable next-review
+timestamp and client-defaulted interval/streak counters. Existing rows are
+backfilled to zero before the counters become non-null; no permanent server
+defaults are introduced.
