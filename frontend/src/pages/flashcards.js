@@ -1,6 +1,7 @@
 export const FLASHCARD_DIFFICULTIES = ['easy', 'medium', 'hard']
 export const FLASHCARD_COUNTS = [5, 10, 15, 20, 30]
 export const FLASHCARD_REVIEW_STATUSES = ['unreviewed', 'known', 'review_again']
+export const DUE_REVIEW_LIMIT = 20
 
 export const FLASHCARD_DIFFICULTY_DETAILS = {
   easy: 'Definitions and direct facts',
@@ -81,6 +82,53 @@ export function normalizeSavedSet(response) {
     flashcards: response.flashcards,
   })
   return response
+}
+
+function isNullableString(value) {
+  return value == null || typeof value === 'string'
+}
+
+export function normalizeDueResponse(response) {
+  if (!response || !Number.isInteger(response.total) || response.total < 0 || !Array.isArray(response.cards)) {
+    throw new Error('The server returned an invalid due flashcard list.')
+  }
+  for (const card of response.cards) {
+    if (
+      typeof card?.id !== 'string'
+      || typeof card.flashcard_set_id !== 'string'
+      || !isNullableString(card.set_title)
+      || typeof card.front !== 'string'
+      || typeof card.back !== 'string'
+      || !FLASHCARD_REVIEW_STATUSES.includes(card.review_status)
+      || !Number.isInteger(card.review_count)
+      || !Number.isInteger(card.review_streak)
+      || !Number.isInteger(card.interval_days)
+      || !isNullableString(card.reviewed_at)
+      || !isNullableString(card.next_review_at)
+      || !Array.isArray(card.sources)
+    ) throw new Error('The server returned an invalid due flashcard list.')
+  }
+  return response
+}
+
+export function createDueReviewSession() {
+  return { known: 0, review_again: 0 }
+}
+
+export function applyDueReview(cards, session, cardId, status, response) {
+  if (!cards.some((card) => card.id === cardId)) throw new Error('The reviewed card is not in the active queue.')
+  applyReviewResponse(cards, cardId, response)
+  if (response.review_status !== status || !['known', 'review_again'].includes(status)) {
+    throw new Error('The server returned an invalid flashcard review.')
+  }
+  return {
+    cards: cards.filter((card) => card.id !== cardId),
+    session: { ...session, [status]: session[status] + 1 },
+  }
+}
+
+export function remainingDueTotal(total, reviewedCount) {
+  return Math.max(0, total - reviewedCount)
 }
 
 export function applyReviewResponse(cards, cardId, response) {
