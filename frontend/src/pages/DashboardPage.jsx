@@ -101,7 +101,7 @@ export default function DashboardPage() {
               <Link to="/lectures" className="quick-action"><div className="quick-action-icon dashboard-icon-primary"><UploadCloud size={24} /></div><span className="quick-action-label">Upload Lecture</span></Link>
               <Link to="/chat" className="quick-action"><div className="quick-action-icon dashboard-icon-accent"><MessageSquare size={24} /></div><span className="quick-action-label">RAG Study Chat</span></Link>
               <Link to="/quiz" className="quick-action"><div className="quick-action-icon dashboard-icon-warning"><HelpCircle size={24} /></div><span className="quick-action-label">Generate Quiz</span></Link>
-              <Link to="/flashcards" className="quick-action"><div className="quick-action-icon dashboard-icon-primary"><FileStack size={24} /></div><span className="quick-action-label">Review Flashcards</span></Link>
+              <Link to="/flashcards" className="quick-action"><div className="quick-action-icon dashboard-icon-primary"><FileStack size={24} /></div><span className="quick-action-label">Review Due Cards</span></Link>
             </div>
           </div>
 

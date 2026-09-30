@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, CheckCircle2, FileText, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, FileText, Layers3, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import api from '../api/api'
 import { useAuth } from '../context/authContextValue'
 import { moduleLabel } from './lectureDisplay'
@@ -7,24 +7,141 @@ import {
   FLASHCARD_COUNTS,
   FLASHCARD_DIFFICULTIES,
   FLASHCARD_DIFFICULTY_DETAILS,
+  DUE_REVIEW_LIMIT,
+  applyDueReview,
   buildFlashcardPayload,
   changeFlashcardModule,
   applyReviewResponse,
   countReviewStatuses,
   createCardReviewController,
+  createDueReviewSession,
   createFlashcardGenerationController,
   flashcardErrorMessage,
   formatSavedSetDate,
   formatFlashcardSource,
   moveCard,
+  normalizeDueResponse,
   normalizeSavedSet,
   normalizeSavedSets,
   resetFlashcardReview,
+  remainingDueTotal,
   reviewStatusLabel,
   revealCard,
   savedFlashcardErrorMessage,
   savedSetLabel,
 } from './flashcards'
+
+function DueReviewMode({ token }) {
+  const [cards, setCards] = useState([])
+  const [dueTotal, setDueTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [revealed, setRevealed] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [session, setSession] = useState(createDueReviewSession)
+  const [sessionBaseline, setSessionBaseline] = useState(0)
+  const sessionCountRef = useRef(0)
+  const [reviewController] = useState(createCardReviewController)
+  const activeRef = useRef(false)
+
+  const loadDue = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = normalizeDueResponse(await api.flashcards.getDue(DUE_REVIEW_LIMIT, token))
+      setCards(response.cards)
+      setDueTotal(response.total)
+      setSessionBaseline(sessionCountRef.current)
+      setRevealed(false)
+      setReviewError('')
+    } catch (loadError) {
+      setError(savedFlashcardErrorMessage(loadError, 'Unable to load due flashcards. Please try again.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    let active = true
+    api.flashcards.getDue(DUE_REVIEW_LIMIT, token).then(normalizeDueResponse).then((response) => {
+      if (!active) return
+      setCards(response.cards)
+      setDueTotal(response.total)
+      setSessionBaseline(sessionCountRef.current)
+    }).catch((loadError) => {
+      if (active) setError(savedFlashcardErrorMessage(loadError, 'Unable to load due flashcards. Please try again.'))
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [token])
+
+  const currentCard = cards[0]
+  const reviewedThisSession = session.known + session.review_again
+  const currentDueTotal = remainingDueTotal(dueTotal, reviewedThisSession - sessionBaseline)
+  const reviewComplete = !loading && !error && cards.length === 0 && reviewedThisSession > 0
+  const moreCardsDue = reviewComplete && currentDueTotal > 0
+
+  async function reviewCard(status) {
+    if (!currentCard || saving || activeRef.current) return
+    activeRef.current = true
+    setSaving(true)
+    setReviewError('')
+    try {
+      const result = await reviewController.review({ cardId: currentCard.id, status, token, request: api.flashcards.review })
+      if (!result.started) return
+      const next = applyDueReview(cards, session, currentCard.id, status, result.response)
+      setCards(next.cards)
+      setSession(next.session)
+      sessionCountRef.current += 1
+      setRevealed(false)
+    } catch (reviewFailure) {
+      setReviewError(savedFlashcardErrorMessage(reviewFailure, 'Unable to save this review. Please try again.'))
+    } finally {
+      activeRef.current = false
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <section className="flashcards-due-state" aria-label="Due flashcards"><div className="flashcards-due-loading" role="status"><Clock3 size={22} />Loading due flashcards...</div></section>
+  if (error) return <section className="flashcards-due-state" aria-label="Due flashcards"><div className="auth-error flashcards-alert" role="alert">{error}</div><button type="button" className="btn btn-primary" onClick={loadDue}>Retry</button></section>
+
+  if (!currentCard) {
+    if (!reviewComplete) return <section className="flashcards-due-state flashcards-due-empty" aria-label="Due flashcards"><CheckCircle2 size={36} /><h2>0 cards due</h2><p>You're all caught up! No flashcards are due right now.</p></section>
+    return (
+      <section className="flashcards-due-state flashcards-due-complete" aria-label="Due review complete">
+        <CheckCircle2 size={36} />
+        <h2>Review complete</h2>
+        <div className="flashcards-session-summary"><span>Known: <strong>{session.known}</strong></span><span>Review Again: <strong>{session.review_again}</strong></span><span>Reviewed this session: <strong>{reviewedThisSession}</strong></span></div>
+        {moreCardsDue ? <><p>More cards are still due.</p><button type="button" className="btn btn-primary" onClick={loadDue}>Load Next Reviews</button></> : <p>You're all caught up for now.</p>}
+      </section>
+    )
+  }
+
+  return (
+    <section className="flashcards-review flashcards-due-review" aria-label="Due flashcard review">
+      <div className="flashcards-due-summary"><div><span className="flashcard-side-label">Due for Review</span><h2>{currentDueTotal} {currentDueTotal === 1 ? 'card' : 'cards'} due</h2></div><span className="badge badge-accent">{cards.length} loaded</span></div>
+      {reviewError && <div className="auth-error flashcards-alert" role="alert">{reviewError}</div>}
+      <article className="flashcard-card">
+        <div className="flashcards-due-card-meta"><span>{currentCard.set_title || 'Saved flashcard set'}</span>{currentCard.review_count > 0 && <span>Reviews: {currentCard.review_count}</span>}</div>
+        <span className="flashcard-side-label">Prompt</span>
+        <h2>{currentCard.front}</h2>
+        {!revealed ? <button type="button" className="btn btn-primary flashcard-reveal-button" onClick={() => setRevealed(true)}>Show Answer</button> : (
+          <div className="flashcard-answer" role="status">
+            <span className="flashcard-side-label">Answer</span>
+            <p>{currentCard.back}</p>
+            {currentCard.sources.length > 0 && <div className="flashcard-sources" aria-label="Card sources">{currentCard.sources.map((source) => <div className="flashcard-source" key={source.source_id}><FileText size={14} /><span>{formatFlashcardSource(source)}</span></div>)}</div>}
+            <div className="flashcard-review-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => reviewCard('review_again')} disabled={saving}>Review Again</button>
+              <button type="button" className="btn btn-primary" onClick={() => reviewCard('known')} disabled={saving}>I Know This</button>
+            </div>
+            {saving && <span className="flashcards-field-note" role="status">Saving...</span>}
+          </div>
+        )}
+      </article>
+      {reviewedThisSession > 0 && <div className="flashcards-due-progress" aria-label="Session review counts"><span>Known {session.known}</span><span>Review Again {session.review_again}</span><span>{reviewedThisSession} reviewed</span></div>}
+    </section>
+  )
+}
 
 export default function FlashcardsPage() {
   const { token } = useAuth()
@@ -50,6 +167,7 @@ export default function FlashcardsPage() {
   const [revealedCards, setRevealedCards] = useState({})
   const [reviewSavingCardId, setReviewSavingCardId] = useState('')
   const [reviewError, setReviewError] = useState('')
+  const [pageMode, setPageMode] = useState('due')
   const generationActiveRef = useRef(false)
   const [generationController] = useState(createFlashcardGenerationController)
   const [reviewController] = useState(createCardReviewController)
@@ -205,9 +323,16 @@ export default function FlashcardsPage() {
   return (
     <div className="flashcards-page stagger-children">
       <div className="page-header flashcards-page-header">
-        <h1>Grounded Flashcard Generator</h1>
-        <p>Create focused review cards from your uploaded study materials.</p>
+        <h1>Flashcards</h1>
+        <p>Review cards when they are due or work with your saved sets.</p>
       </div>
+
+      <div className="flashcards-mode-switch" aria-label="Flashcard mode">
+        <button type="button" className={pageMode === 'due' ? 'active' : ''} aria-pressed={pageMode === 'due'} onClick={() => setPageMode('due')}><Clock3 size={17} />Due for Review</button>
+        <button type="button" className={pageMode === 'library' ? 'active' : ''} aria-pressed={pageMode === 'library'} onClick={() => setPageMode('library')}><Layers3 size={17} />Saved Sets &amp; Generator</button>
+      </div>
+
+      {pageMode === 'due' ? <DueReviewMode token={token} /> : <>
 
       <section className="flashcards-saved" aria-label="Saved flashcard sets">
         <div className="flashcards-saved-header"><div><h2>Saved Sets</h2><p>Reopen a persisted deck and continue reviewing.</p></div></div>
@@ -297,6 +422,7 @@ export default function FlashcardsPage() {
           <button type="button" className="btn btn-ghost flashcards-reset-button" onClick={resetReview}><RotateCcw size={16} /> Generate Another Set</button>
         </section>
       )}
+      </>}
     </div>
   )
 }

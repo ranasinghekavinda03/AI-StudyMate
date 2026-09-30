@@ -130,6 +130,21 @@
 /* ---------- Flashcards Layout ---------- */
 .flashcards-page { max-width: 820px; margin: 0 auto; }
 .flashcards-page-header { text-align: center; margin-bottom: var(--space-6); }
+.flashcards-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: var(--space-1); margin-bottom: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-secondary); }
+.flashcards-mode-switch button { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-md); color: var(--text-secondary); background: transparent; font-size: var(--text-sm); font-weight: 700; cursor: pointer; transition: all var(--transition-fast); }
+.flashcards-mode-switch button:hover { color: var(--primary); }
+.flashcards-mode-switch button.active { color: var(--primary); background: var(--surface); box-shadow: var(--shadow-sm); }
+.flashcards-due-state { padding: var(--space-10); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); text-align: center; }
+.flashcards-due-state > svg { color: var(--accent); margin-bottom: var(--space-3); }
+.flashcards-due-state h2 { margin-bottom: var(--space-2); }
+.flashcards-due-state p { color: var(--text-secondary); margin-bottom: var(--space-5); }
+.flashcards-due-loading { display: flex; align-items: center; justify-content: center; gap: var(--space-3); color: var(--text-secondary); font-weight: 600; }
+.flashcards-due-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+.flashcards-due-summary h2 { margin-top: var(--space-1); font-size: var(--text-xl); }
+.flashcards-due-card-meta { display: flex; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-5); color: var(--text-muted); font-size: var(--text-sm); }
+.flashcards-due-progress, .flashcards-session-summary { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); }
+.flashcards-due-progress span, .flashcards-session-summary span { padding: var(--space-2) var(--space-3); border-radius: var(--radius-full); background: var(--bg-secondary); }
+.flashcards-session-summary { margin-bottom: var(--space-5); }
 .flashcards-saved { margin-bottom: var(--space-5); padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
 .flashcards-saved-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-4); }
 .flashcards-saved-header h2 { font-size: var(--text-lg); margin-bottom: var(--space-1); }
@@ -198,6 +213,8 @@
   .flashcards-saved-item { align-items: stretch; flex-direction: column; gap: 0; }
   .flashcards-saved-delete { align-self: flex-end; margin: 0 var(--space-2) var(--space-2); }
   .flashcard-card { min-height: 320px; }
+  .flashcards-mode-switch { grid-template-columns: 1fr; }
+  .flashcards-due-summary, .flashcards-due-card-meta { align-items: flex-start; flex-direction: column; }
 }
 
 /* ---------- Auth Layout ---------- */
