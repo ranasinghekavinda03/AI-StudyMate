@@ -157,6 +157,40 @@ test('flashcard generation posts its payload with authentication through the sha
   }
 })
 
+test('due flashcards use the authenticated endpoint with default limit 20', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ cards: [], total: 0 }) }
+  }
+  try {
+    await api.flashcards.getDue(undefined, 'access-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/flashcards/due?limit=20')
+    assert.equal(captured.config.method, 'GET')
+    assert.equal(captured.config.headers.Authorization, 'Bearer access-token')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('due flashcards encode an explicit limit through the shared helper', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (url, config) => {
+    captured = { url, config }
+    return { ok: true, status: 200, json: async () => ({ cards: [], total: 0 }) }
+  }
+  try {
+    await api.flashcards.getDue(7, 'secret-token')
+    assert.equal(captured.url, 'http://localhost:8000/api/v1/flashcards/due?limit=7')
+    assert.equal(captured.config.headers.Authorization, 'Bearer secret-token')
+    assert.equal(captured.url.includes('secret-token'), false)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('saved flashcard list and detail use authenticated GET requests', async () => {
   const originalFetch = globalThis.fetch
   const captured = []

@@ -166,6 +166,11 @@ const api = {
   },
 
   flashcards: {
+    getDue: (limit = 20, token) =>
+      request(`/flashcards/due?limit=${encodeURIComponent(limit)}`, {
+        method: 'GET',
+        token,
+      }),
     generate: (payload, token) =>
       request('/flashcards/generate', {
         method: 'POST',
