@@ -1,13 +1,11 @@
-# AI-StudyMate Project Documentation
+# AI StudyMate Project Documentation
 
-## Overview
+AI StudyMate is a feature-complete local practice and portfolio project with a FastAPI backend and React frontend. The current implementation includes authenticated module and lecture management, document ingestion, semantic retrieval, grounded AI study tools, persistent flashcards, basic spaced repetition, and dashboard statistics.
 
-AI-StudyMate is organized as a FastAPI backend and a React frontend. The backend owns authentication, retrieval-augmented generation, quizzes, persistence, and service integrations. The frontend owns the user experience and communicates with the backend through API wrappers.
+Use the active documentation below:
 
-## Repository Layout
+- [Project README](../README.md) — features, local setup, environment variables, testing, and limitations
+- [Architecture](ARCHITECTURE.md) — system components and the upload, RAG, and flashcard-review flows
+- [Database migrations](../backend/app/db/migrations/README.md) — ordered SQL updates for existing local PostgreSQL databases
 
-The `backend/app` package is divided by responsibility into API routes, core configuration and security, database access, models, schemas, and services. Frontend code is grouped into reusable components, pages, hooks, API wrappers, and context providers.
-
-## Development Status
-
-This repository currently contains the initial application skeleton. Domain behavior, persistence configuration, authentication flows, and UI screens can be added incrementally without changing the top-level layout.
+Historical planning or inspection notes should not be treated as descriptions of the current implementation.
