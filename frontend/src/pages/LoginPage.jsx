@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   const { login } = useAuth()
@@ -71,16 +72,13 @@ export default function LoginPage() {
             <div className="input-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label htmlFor="password">Password</label>
-                <a
-                  href="#forgot"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    alert('Password reset link has been sent to your email (demo).')
-                  }}
-                  style={{ fontSize: 'var(--text-xs)', color: 'var(--primary)' }}
+                <button
+                  type="button"
+                  className="auth-link-button"
+                  onClick={() => setForgotPasswordMessage('Password reset is not available in this practice version yet.')}
                 >
                   Forgot password?
-                </a>
+                </button>
               </div>
               <div className="input-with-icon input-with-toggle">
                 <Lock size={18} className="input-icon" />
@@ -103,6 +101,7 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {forgotPasswordMessage && <p className="auth-info-message" role="status">{forgotPasswordMessage}</p>}
             </div>
 
             <button

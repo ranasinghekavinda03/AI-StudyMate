@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Menu, Search, Bell, LogOut, BookOpen } from 'lucide-react'
+import { Menu, LogOut, BookOpen } from 'lucide-react'
 import { useAuth } from '../context/authContextValue'
 
 const pageTitles = {
@@ -54,33 +54,16 @@ export default function Navbar({ onToggleSidebar }) {
 
       <div className="navbar-spacer" />
 
-      <div className="navbar-search">
-        <Search size={16} className="navbar-search-icon" />
-        <input
-          type="text"
-          placeholder="Search lectures, topics, or notes..."
-          className="navbar-search-input"
-        />
-      </div>
-
       <div className="navbar-right">
-        <button
-          type="button"
-          className="navbar-btn"
-          title="Notifications"
-          aria-label="Notifications"
-        >
-          <Bell size={18} />
-          <span className="navbar-notification-dot" />
-        </button>
-
         {user ? (
           <div className="dropdown" ref={dropdownRef}>
-            <div
+            <button
+              type="button"
               className="navbar-user"
               onClick={() => setDropdownOpen((prev) => !prev)}
-              role="button"
-              tabIndex={0}
+              aria-expanded={dropdownOpen}
+              aria-haspopup="menu"
+              aria-controls="navbar-profile-menu"
             >
               <div className="avatar avatar-sm avatar-primary">
                 {user.avatar || 'ST'}
@@ -88,9 +71,9 @@ export default function Navbar({ onToggleSidebar }) {
               <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>
                 {user.name.split(' ')[0]}
               </span>
-            </div>
+            </button>
 
-            <div className={`dropdown-menu ${dropdownOpen ? 'open' : ''}`}>
+            <div id="navbar-profile-menu" className={`dropdown-menu ${dropdownOpen ? 'open' : ''}`}>
               <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {user.name}

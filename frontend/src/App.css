@@ -340,6 +340,24 @@
   animation: fadeIn var(--transition-fast) ease-out;
 }
 
+.auth-link-button {
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.auth-link-button:hover,
+.auth-link-button:focus-visible {
+  text-decoration: underline;
+}
+
+.auth-info-message {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
@@ -638,79 +656,10 @@
   flex: 1;
 }
 
-.navbar-search {
-  position: relative;
-  max-width: 320px;
-  flex: 1;
-}
-
-.navbar-search-input {
-  width: 100%;
-  padding: 8px 14px 8px 38px;
-  background: var(--bg-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--radius-full);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  outline: none;
-  transition: all var(--transition-fast);
-}
-
-.navbar-search-input:hover {
-  border-color: var(--border);
-}
-
-.navbar-search-input:focus {
-  background: var(--surface);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
-}
-
-.navbar-search-input::placeholder {
-  color: var(--text-muted);
-}
-
-.navbar-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
 .navbar-right {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.navbar-btn {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  transition: all var(--transition-fast);
-}
-
-.navbar-btn:hover {
-  background: var(--primary-light);
-  color: var(--primary);
-}
-
-.navbar-notification-dot {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 7px;
-  height: 7px;
-  background: var(--danger);
-  border-radius: var(--radius-full);
-  border: 2px solid var(--surface);
 }
 
 .navbar-user {
@@ -726,6 +675,11 @@
 
 .navbar-user:hover {
   background: var(--surface-hover);
+}
+
+.navbar-user:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* Dropdown menu for user */
