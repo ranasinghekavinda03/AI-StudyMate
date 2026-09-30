@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpRight,
+  BrainCircuit,
   BookOpen,
   FileStack,
   FileText,
@@ -46,16 +47,23 @@ export default function DashboardPage() {
 
   return (
     <div className="stagger-children">
-      <div className="page-header">
-        <div className="page-header-actions">
-          <div>
-            <h1>Welcome back, {user ? user.name.split(' ')[0] : 'Student'}!</h1>
-            <p>Here is an overview of your real StudyMate activity.</p>
-          </div>
+      <div className="dashboard-hero">
+        <div className="dashboard-hero-content">
+          <span className="dashboard-hero-eyebrow"><Sparkles size={15} />Your learning workspace</span>
+          <h1>Welcome back, {user ? user.name.split(' ')[0] : 'Student'}!</h1>
+          <p>Ready to continue learning? Turn your lecture material into grounded answers, quizzes, summaries, and review cards.</p>
           <div className="dashboard-header-actions">
-            <Link to="/lectures" className="btn btn-primary"><UploadCloud size={18} />Upload Lecture</Link>
-            <Link to="/chat" className="btn btn-secondary"><Sparkles size={18} />Ask AI</Link>
+            <Link to="/lectures" className="btn dashboard-hero-primary"><UploadCloud size={18} />Upload Lecture</Link>
+            <Link to="/chat" className="btn dashboard-hero-secondary"><Sparkles size={18} />Ask StudyMate</Link>
           </div>
+        </div>
+        <div className="dashboard-hero-visual" aria-hidden="true">
+          <div className="hero-orbit hero-orbit-one" />
+          <div className="hero-orbit hero-orbit-two" />
+          <div className="hero-learning-card hero-learning-card-back"><BookOpen size={30} /></div>
+          <div className="hero-learning-card hero-learning-card-front"><BrainCircuit size={38} /><span>Study smarter</span></div>
+          <Sparkles className="hero-sparkle hero-sparkle-one" size={19} />
+          <Sparkles className="hero-sparkle hero-sparkle-two" size={14} />
         </div>
       </div>
 

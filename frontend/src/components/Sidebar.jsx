@@ -47,9 +47,7 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
             <div>
               <span className="sidebar-brand-name">AI StudyMate</span>
-              <div style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.04em' }}>
-                RAG ASSISTANT
-              </div>
+              <div className="sidebar-brand-subtitle">LEARN SMARTER</div>
             </div>
           </NavLink>
           {onClose && (
@@ -85,7 +83,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         <div className="sidebar-footer">
           {user ? (
-            <div className="sidebar-user" onClick={handleLogout} title="Click to log out">
+            <button type="button" className="sidebar-user" onClick={handleLogout} title="Sign out">
               <div className="avatar avatar-md avatar-primary">
                 {user.avatar || 'ST'}
               </div>
@@ -94,7 +92,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 <div className="sidebar-user-email truncate">{user.email}</div>
               </div>
               <LogOut size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            </div>
+            </button>
           ) : (
             <NavLink to="/login" className="btn btn-primary btn-sm" style={{ width: '100%' }}>
               Sign In
