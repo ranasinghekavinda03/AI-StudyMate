@@ -5,19 +5,24 @@ import test from 'node:test'
 import {
   FLASHCARD_COUNTS,
   FLASHCARD_DIFFICULTIES,
+  DUE_REVIEW_LIMIT,
+  applyDueReview,
   applyReviewResponse,
   buildFlashcardPayload,
   changeFlashcardModule,
   countReviewStatuses,
   createCardReviewController,
+  createDueReviewSession,
   createFlashcardGenerationController,
   flashcardErrorMessage,
   formatFlashcardSource,
   moveCard,
+  normalizeDueResponse,
   normalizeFlashcardResponse,
   normalizeSavedSet,
   normalizeSavedSets,
   resetFlashcardReview,
+  remainingDueTotal,
   reviewStatusLabel,
   revealCard,
 } from './flashcards.js'
@@ -36,6 +41,24 @@ function cards(count = 5) {
 
 function response(count = 5) {
   return { flashcard_set_id: 'set-1', difficulty: 'medium', flashcards: cards(count) }
+}
+
+function dueCard(id = 'due-1', overrides = {}) {
+  return {
+    id,
+    flashcard_set_id: 'set-1',
+    set_title: 'Week One',
+    front: 'Due prompt',
+    back: 'Due answer',
+    review_status: 'unreviewed',
+    reviewed_at: null,
+    review_count: 0,
+    review_streak: 0,
+    interval_days: 0,
+    next_review_at: null,
+    sources: [{ source_id: 'S1', chunk_id: null, lecture_id: null, module_id: null, lecture_title: 'Saved Lecture', page_number: null }],
+    ...overrides,
+  }
 }
 
 test('default payload uses all scopes, ten cards, and medium difficulty', () => {
@@ -76,6 +99,51 @@ test('saved lists and details preserve persisted review metadata after refresh-s
   assert.equal(sets[0].id, 'set-1')
   assert.equal(detail.flashcards[0].review_status, 'known')
   assert.equal(detail.flashcards[0].review_count, 1)
+})
+
+test('due response preserves backend total, real IDs, scheduling metadata, and snapshots', () => {
+  const result = normalizeDueResponse({ cards: [dueCard()], total: 43 })
+  assert.equal(DUE_REVIEW_LIMIT, 20)
+  assert.equal(result.total, 43)
+  assert.equal(result.cards[0].id, 'due-1')
+  assert.equal(result.cards[0].review_streak, 0)
+  assert.equal(result.cards[0].sources[0].lecture_title, 'Saved Lecture')
+  assert.throws(() => normalizeDueResponse({ cards: [dueCard('bad', { interval_days: '0' })], total: 1 }), /invalid due/)
+})
+
+test('confirmed known review removes the active card, advances queue, and counts the session', () => {
+  const queue = [dueCard('due-1'), dueCard('due-2')]
+  const result = applyDueReview(queue, createDueReviewSession(), 'due-1', 'known', {
+    id: 'due-1', review_status: 'known', reviewed_at: '2026-09-30T10:00:00', review_count: 1,
+    review_streak: 1, interval_days: 1, next_review_at: '2026-10-01T10:00:00',
+  })
+  assert.deepEqual(result.cards.map((card) => card.id), ['due-2'])
+  assert.deepEqual(result.session, { known: 1, review_again: 0 })
+})
+
+test('confirmed review-again removes only that card and increments its session count', () => {
+  const result = applyDueReview([dueCard()], createDueReviewSession(), 'due-1', 'review_again', {
+    id: 'due-1', review_status: 'review_again', reviewed_at: '2026-09-30T10:00:00', review_count: 1,
+    review_streak: 0, interval_days: 1, next_review_at: '2026-10-01T10:00:00',
+  })
+  assert.equal(result.cards.length, 0)
+  assert.deepEqual(result.session, { known: 0, review_again: 1 })
+})
+
+test('failed or mismatched due review leaves the original queue and session untouched', () => {
+  const queue = [dueCard()]
+  const session = createDueReviewSession()
+  assert.throws(() => applyDueReview(queue, session, 'due-1', 'known', {
+    id: 'due-1', review_status: 'review_again', reviewed_at: '2026-09-30T10:00:00', review_count: 1,
+  }), /invalid flashcard review/)
+  assert.equal(queue.length, 1)
+  assert.deepEqual(session, { known: 0, review_again: 0 })
+})
+
+test('due totals distinguish loaded cards from backend total and never go negative', () => {
+  assert.equal(remainingDueTotal(43, 0), 43)
+  assert.equal(remainingDueTotal(43, 20), 23)
+  assert.equal(remainingDueTotal(1, 2), 0)
 })
 
 test('answer begins hidden and reveal state is preserved per card', () => {
@@ -171,4 +239,43 @@ test('page contains saved, review, confirmation, loading, and existing generatio
   assert.match(source, /setCurrentSetId\(result\.response\.flashcard_set_id\)/)
   const answerIndex = source.indexOf('className="flashcard-answer"')
   assert.ok(source.indexOf('I Know This') > answerIndex)
+})
+
+test('due review page includes loading, empty, reveal, completion, retry, and load-next states', async () => {
+  const source = await readFile(path.resolve(import.meta.dirname, 'FlashcardsPage.jsx'), 'utf8')
+  for (const expected of [
+    'Due for Review',
+    'Loading due flashcards...',
+    "You're all caught up! No flashcards are due right now.",
+    'Show Answer',
+    'Review complete',
+    'Reviewed this session:',
+    'More cards are still due.',
+    'Load Next Reviews',
+    'Retry',
+    'Saving...',
+  ]) assert.equal(source.includes(expected), true)
+  assert.match(source, /api\.flashcards\.getDue\(DUE_REVIEW_LIMIT, token\)/)
+  assert.match(source, /api\.flashcards\.review/)
+  assert.match(source, /setRevealed\(false\)/)
+  assert.match(source, /disabled=\{saving\}/)
+})
+
+test('review controls remain inside the revealed-answer branch and failures do not remove cards', async () => {
+  const source = await readFile(path.resolve(import.meta.dirname, 'FlashcardsPage.jsx'), 'utf8')
+  const dueStart = source.indexOf('function DueReviewMode')
+  const revealBranch = source.indexOf("!revealed ?", dueStart)
+  const reviewButton = source.indexOf('Review Again', revealBranch)
+  const applySuccess = source.indexOf('applyDueReview', revealBranch)
+  const catchBranch = source.indexOf('catch (reviewFailure)', applySuccess)
+  assert.ok(revealBranch > dueStart)
+  assert.ok(reviewButton > revealBranch)
+  assert.ok(applySuccess < catchBranch)
+  assert.equal(source.slice(catchBranch, source.indexOf('finally', catchBranch)).includes('setCards'), false)
+})
+
+test('dashboard provides a direct due-review entry point', async () => {
+  const source = await readFile(path.resolve(import.meta.dirname, 'DashboardPage.jsx'), 'utf8')
+  assert.match(source, /Review Due Cards/)
+  assert.match(source, /to="\/flashcards"/)
 })
