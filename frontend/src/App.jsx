@@ -13,6 +13,7 @@ import ChatPage from './pages/ChatPage'
 import QuizPage from './pages/QuizPage'
 import SummaryPage from './pages/SummaryPage'
 import FlashcardsPage from './pages/FlashcardsPage'
+import LandingPage from './pages/LandingPage'
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -33,7 +34,8 @@ function AppLayout() {
 function App() {
   return (
     <Routes>
-      {/* Public Auth Routes */}
+      {/* Public Routes */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
@@ -55,7 +57,6 @@ function App() {
       </Route>
 
       {/* Redirects */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

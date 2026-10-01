@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/authContextValue'
+import AuthVisual from '../components/AuthVisual'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -60,6 +61,7 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-layout">
+      <AuthVisual variant="register" />
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
@@ -69,8 +71,8 @@ export default function RegisterPage() {
               </div>
               <span className="auth-logo-text">AI StudyMate</span>
             </div>
-            <h1>Create an account</h1>
-            <p>Start learning smarter with AI-powered notes and quizzes</p>
+            <h1>Start learning smarter.</h1>
+            <p>Create your StudyMate account and turn lecture materials into interactive study tools.</p>
           </div>
 
           {error && <div className="auth-error">{error}</div>}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { GraduationCap, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/authContextValue'
+import AuthVisual from '../components/AuthVisual'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -36,6 +37,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth-layout">
+      <AuthVisual variant="login" />
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
@@ -46,7 +48,7 @@ export default function LoginPage() {
               <span className="auth-logo-text">AI StudyMate</span>
             </div>
             <h1>Welcome back</h1>
-            <p>Enter your credentials to access your study materials</p>
+            <p>Continue your learning journey.</p>
           </div>
 
           {error && <div className="auth-error">{error}</div>}
@@ -110,7 +112,7 @@ export default function LoginPage() {
               style={{ width: '100%' }}
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Log In'}
               {!loading && <ArrowRight size={18} />}
             </button>
 
