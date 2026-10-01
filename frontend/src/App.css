@@ -2024,52 +2024,6 @@
    Presentation-only overrides built on the existing components.
    ============================================================ */
 
-:root {
-  --primary-dark: #0F172A;
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --primary-light: rgba(79, 70, 229, 0.10);
-  --primary-border: rgba(79, 70, 229, 0.28);
-  --secondary: #7C3AED;
-  --accent: #2563EB;
-  --accent-hover: #1D4ED8;
-  --accent-light: rgba(37, 99, 235, 0.09);
-  --accent-border: rgba(37, 99, 235, 0.24);
-  --success: #16A34A;
-  --success-light: rgba(22, 163, 74, 0.10);
-  --warning: #F59E0B;
-  --warning-light: rgba(245, 158, 11, 0.12);
-  --danger: #DC2626;
-  --danger-light: rgba(220, 38, 38, 0.09);
-  --bg: #F8FAFC;
-  --bg-secondary: #F1F5F9;
-  --surface: #FFFFFF;
-  --surface-hover: #F8FAFC;
-  --surface-elevated: #FFFFFF;
-  --text-primary: #0F172A;
-  --text-secondary: #64748B;
-  --text-muted: #94A3B8;
-  --text-inverse: #FFFFFF;
-  --border: #E2E8F0;
-  --border-light: #EDF2F7;
-  --border-focus: #6366F1;
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 3px 10px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 20px 42px rgba(15, 23, 42, 0.11);
-  --shadow-xl: 0 28px 64px rgba(15, 23, 42, 0.16);
-  --shadow-floating: 0 24px 50px rgba(49, 46, 129, 0.24);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
-  --radius-2xl: 30px;
-  --font-display: var(--font-sans);
-  --transition-fast: 160ms cubic-bezier(0.22, 1, 0.36, 1);
-  --transition-base: 240ms cubic-bezier(0.22, 1, 0.36, 1);
-  --transition-slow: 360ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 body {
   background:
     radial-gradient(circle at 94% 3%, rgba(79, 70, 229, 0.08), transparent 30rem),
@@ -2291,8 +2245,8 @@ summary:focus-visible {
 .flashcard-answer { animation: softReveal 280ms ease-out both; }
 .flashcards-due-review { max-width: 760px; margin-inline: auto; }
 .flashcards-due-summary { padding: 4px; }
-.flashcard-review-actions .btn-secondary:first-child { color: #166534; border-color: #BBF7D0; background: #F0FDF4; }
-.flashcard-review-actions .btn-secondary:last-child { color: #92400E; border-color: #FDE68A; background: #FFFBEB; }
+.flashcard-review-actions .btn-secondary:first-child { color: #92400E; border-color: #FDE68A; background: #FFFBEB; }
+.flashcard-review-actions .btn-primary:last-child { color: white; border-color: var(--success); background: var(--success); }
 .flashcards-due-progress span, .flashcards-session-summary span { border: 1px solid var(--border); background: white; box-shadow: var(--shadow-xs); }
 
 .empty-state-icon { color: var(--primary); background: var(--primary-light); }
