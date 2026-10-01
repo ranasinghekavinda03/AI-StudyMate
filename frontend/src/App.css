@@ -2326,7 +2326,7 @@ summary:focus-visible {
   padding: clamp(32px, 5vw, 72px);
   overflow: hidden;
   color: var(--primary-dark);
-  background-image: url('./assets/landing-hero-unsplash.jpg'), linear-gradient(145deg, #F8FAFC, #E0E7FF);
+  background-image: url('./assets/landing-hero.webp'), linear-gradient(145deg, #F8FAFC, #E0E7FF);
   background-size: cover;
   background-position: center 44%;
   animation: authVisualIn 550ms cubic-bezier(.22,1,.36,1) both;
