@@ -271,9 +271,10 @@ The frontend includes:
 - Summary
 <img width="1275" height="615" alt="{7D1C0A42-FFE7-404B-B757-8DA2293FE854}" src="https://github.com/user-attachments/assets/bf919373-a56a-4437-ad64-e0448f90bb50" />
 - Flashcards
+<img width="1273" height="619" alt="{469812E6-756C-49CB-943D-76930EB24263}" src="https://github.com/user-attachments/assets/210b16a7-e0a0-4a1b-82ce-dca33bafac78" />
 - Due Review
+<img width="1274" height="622" alt="{0728B906-8F52-4F11-BD9F-804EDBFD36BE}" src="https://github.com/user-attachments/assets/90dd4f1f-318d-4719-bdbc-2202b395100c" />
 
-> Add screenshots from the local running application when ready.
 
 ---
 
