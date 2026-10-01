@@ -260,13 +260,16 @@ The frontend includes:
 
 ## 📸 Screenshots
 
-Recommended screenshots for the repository:
-
 - Landing Page
+<img width="1275" height="620" alt="{956E3A8F-E9EA-4CBA-8C4A-604A23EAF3ED}" src="https://github.com/user-attachments/assets/9de8a626-0b1b-42be-a5c1-9abe16d88460" />
 - Dashboard
+<img width="1270" height="617" alt="{DA2BBB17-9BCC-4FC4-91EE-02D4C7A3FE59}" src="https://github.com/user-attachments/assets/925d9ced-406e-461f-b6ea-07424038a8e4" />
 - RAG Chat
+<img width="1271" height="599" alt="{C7D7DFEE-508D-4614-811F-1C2F901B5D42}" src="https://github.com/user-attachments/assets/08c88dff-b62a-42ab-9b32-0f4dc963592b" />
 - Quiz
+<img width="1277" height="610" alt="{A0BB6B59-D0CB-486C-95BF-C4217522F36F}" src="https://github.com/user-attachments/assets/f43c592a-767c-4121-a548-35555c88a48f" />
 - Summary
+<img width="1275" height="615" alt="{7D1C0A42-FFE7-404B-B757-8DA2293FE854}" src="https://github.com/user-attachments/assets/bf919373-a56a-4437-ad64-e0448f90bb50" />
 - Flashcards
 - Due Review
 
